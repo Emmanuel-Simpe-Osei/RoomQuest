@@ -1,8 +1,6 @@
 import "./globals.css";
-import Navbar from "@/components/Navbar";
-import Footer from "@/components/Footer";
 import { Toaster } from "react-hot-toast";
-import NavbarPublic from "@/components/public/NavbarPublic";
+import ClientWrapper from "@/components/ClientWrapper"; // 👈 new file
 
 export const metadata = {
   title: "RoomQuest",
@@ -13,9 +11,7 @@ export default function RootLayout({ children }) {
   return (
     <html lang="en">
       <body className="bg-gray-50 text-gray-900 font-sans min-h-screen flex flex-col">
-        <NavbarPublic />
-        <main className="flex-1">{children}</main>
-        {/* <Footer /> */}
+        <ClientWrapper>{children}</ClientWrapper>
         <Toaster position="top-center" />
       </body>
     </html>
