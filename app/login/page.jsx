@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -18,9 +19,11 @@ const schema = z.object({
 
 export default function LoginPage() {
   const [loading, setLoading] = useState(false);
+  const [redirecting, setRedirecting] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [slowNote, setSlowNote] = useState("");
   const slowTimer = useRef(null);
+  const router = useRouter();
 
   const {
     register,
@@ -29,10 +32,65 @@ export default function LoginPage() {
     setError,
   } = useForm({ resolver: zodResolver(schema) });
 
+  // 🧹 Cleanup timer on unmount
   useEffect(() => {
     return () => clearTimeout(slowTimer.current);
   }, []);
 
+  // ✅ Listen for session changes (redirects after login)
+  useEffect(() => {
+    const { data: authListener } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        if (session) {
+          setRedirecting(true);
+          const user = session.user;
+
+          // Fetch role from profiles table
+          const { data: profile } = await supabase
+            .from("profiles")
+            .select("role")
+            .eq("id", user.id)
+            .single();
+
+          const role = profile?.role || "user";
+          toast.success(
+            `Welcome back, ${role === "admin" ? "Admin" : "User"}!`
+          );
+
+          if (role === "admin") {
+            router.replace("/dashboard/admin");
+          } else {
+            router.replace("/rooms");
+          }
+        }
+      }
+    );
+
+    return () => authListener.subscription.unsubscribe();
+  }, [router]);
+
+  // ✅ If user already logged in, skip login page
+  useEffect(() => {
+    async function checkSession() {
+      const { data } = await supabase.auth.getSession();
+      const session = data?.session;
+      if (session) {
+        setRedirecting(true);
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("role")
+          .eq("id", session.user.id)
+          .single();
+
+        const role = profile?.role || "user";
+        if (role === "admin") router.replace("/dashboard/admin");
+        else router.replace("/rooms");
+      }
+    }
+    checkSession();
+  }, [router]);
+
+  // ✅ Sign-in logic
   const onSubmit = async (values) => {
     setLoading(true);
     setSlowNote("");
@@ -47,8 +105,9 @@ export default function LoginPage() {
       });
 
       if (error) throw error;
-      toast.success("Welcome back to RoomQuest!");
-      // Redirect will be handled by auth state change
+
+      toast.success("Login successful!");
+      // Redirection handled by the session listener
     } catch (err) {
       console.error(err);
       const msg = err?.message?.includes("Invalid")
@@ -63,27 +122,30 @@ export default function LoginPage() {
     }
   };
 
+  // 🌀 Redirect spinner UI
+  if (redirecting) {
+    return (
+      <div className="flex justify-center items-center min-h-screen bg-gray-50">
+        <div className="relative w-12 h-12">
+          <div className="absolute inset-0 rounded-full border-4 border-[#142B6F] border-t-transparent animate-spin"></div>
+          <div className="absolute inset-2 rounded-full bg-[#FFD601] animate-pulse"></div>
+        </div>
+      </div>
+    );
+  }
+
+  // 🌈 Login Form UI
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#142B6F] via-[#1A3A8E] to-[#0D1F5A] px-4 relative overflow-hidden">
-      {/* Animated background elements */}
+      {/* Animated background bubbles */}
       <motion.div
         className="absolute top-10 left-10 w-20 h-20 bg-[#FFD601]/10 rounded-full blur-xl"
-        animate={{
-          y: [0, -20, 0],
-          scale: [1, 1.1, 1],
-        }}
-        transition={{
-          duration: 4,
-          repeat: Infinity,
-          ease: "easeInOut",
-        }}
+        animate={{ y: [0, -20, 0], scale: [1, 1.1, 1] }}
+        transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
       />
       <motion.div
         className="absolute bottom-20 right-16 w-16 h-16 bg-[#FFD601]/15 rounded-full blur-lg"
-        animate={{
-          y: [0, 15, 0],
-          scale: [1, 1.2, 1],
-        }}
+        animate={{ y: [0, 15, 0], scale: [1, 1.2, 1] }}
         transition={{
           duration: 3.5,
           repeat: Infinity,
@@ -93,10 +155,7 @@ export default function LoginPage() {
       />
       <motion.div
         className="absolute top-1/3 right-1/4 w-12 h-12 bg-[#FFD601]/10 rounded-full blur-lg"
-        animate={{
-          y: [0, -15, 0],
-          scale: [1, 1.3, 1],
-        }}
+        animate={{ y: [0, -15, 0], scale: [1, 1.3, 1] }}
         transition={{
           duration: 5,
           repeat: Infinity,
@@ -105,18 +164,13 @@ export default function LoginPage() {
         }}
       />
 
+      {/* Login card */}
       <motion.div
         className="w-full max-w-md bg-white/95 backdrop-blur-xl shadow-2xl rounded-2xl p-8 border border-white/20 relative z-10"
         initial={{ opacity: 0, y: 30, scale: 0.95 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
-        transition={{
-          duration: 0.6,
-          ease: "easeOut",
-        }}
-        whileHover={{
-          scale: 1.01,
-          transition: { duration: 0.2 },
-        }}
+        transition={{ duration: 0.6, ease: "easeOut" }}
+        whileHover={{ scale: 1.01, transition: { duration: 0.2 } }}
       >
         {/* Header */}
         <motion.div
@@ -133,8 +187,9 @@ export default function LoginPage() {
           </p>
         </motion.div>
 
+        {/* Form */}
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-          {/* Email Field */}
+          {/* Email */}
           <motion.div
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
@@ -152,9 +207,9 @@ export default function LoginPage() {
             <AnimatePresence>
               {errors.email && (
                 <motion.p
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: "auto" }}
-                  exit={{ opacity: 0, height: 0 }}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
                   className="text-xs text-red-600 mt-2"
                 >
                   {errors.email.message}
@@ -163,7 +218,7 @@ export default function LoginPage() {
             </AnimatePresence>
           </motion.div>
 
-          {/* Password Field */}
+          {/* Password */}
           <motion.div
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
@@ -188,9 +243,9 @@ export default function LoginPage() {
             <AnimatePresence>
               {errors.password && (
                 <motion.p
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: "auto" }}
-                  exit={{ opacity: 0, height: 0 }}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
                   className="text-xs text-red-600 mt-2"
                 >
                   {errors.password.message}
@@ -199,7 +254,7 @@ export default function LoginPage() {
             </AnimatePresence>
           </motion.div>
 
-          {/* Forgot Password */}
+          {/* Forgot password */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -214,7 +269,7 @@ export default function LoginPage() {
             </Link>
           </motion.div>
 
-          {/* Submit Button */}
+          {/* Submit */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -223,7 +278,7 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-gradient-to-r from-[#142B6F] to-[#1A3A8E] text-white font-semibold py-3.5 rounded-xl hover:shadow-lg hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 disabled:opacity-60 disabled:hover:scale-100 disabled:hover:shadow-none relative overflow-hidden"
+              className="w-full bg-gradient-to-r from-[#142B6F] to-[#1A3A8E] text-white font-semibold py-3.5 rounded-xl hover:shadow-lg hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 disabled:opacity-60 relative overflow-hidden"
             >
               <motion.span
                 className="relative z-10"
@@ -256,7 +311,7 @@ export default function LoginPage() {
             )}
           </motion.div>
 
-          {/* Sign Up Link */}
+          {/* Sign up */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
