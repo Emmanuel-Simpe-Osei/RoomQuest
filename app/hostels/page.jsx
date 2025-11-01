@@ -5,22 +5,32 @@ import { supabase } from "@/lib/supabaseClient";
 import { motion } from "framer-motion";
 import HostelCard from "@/components/public/HostelCard";
 
-const NAVY = "#142B6F";
-
 export default function HostelsPage() {
   const [hostels, setHostels] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // ✅ Fetch hostels (check your actual table name)
   useEffect(() => {
     const fetchHostels = async () => {
       try {
         setLoading(true);
 
-        // 🔥 change "hostels" if your table name differs
+        // ✅ Match exact column names from your Supabase table
         const { data, error } = await supabase
           .from("hostels")
-          .select("*")
+          .select(
+            `
+            id,
+            title,
+            location,
+            hostel_type,
+            price_per_semester,
+            description,
+            images,
+            availability,
+            verified,
+            created_at
+          `
+          )
           .order("created_at", { ascending: false });
 
         if (error) throw error;
@@ -38,12 +48,10 @@ export default function HostelsPage() {
   return (
     <main className="min-h-screen bg-gray-50 px-6 md:px-16 py-10">
       <div className="max-w-6xl mx-auto">
-        {/* 🔹 Header (no extra search bar) */}
         <h1 className="text-3xl font-bold text-[#142B6F] mb-6">
           Explore Available Hostels
         </h1>
 
-        {/* 🔹 Content */}
         {loading ? (
           <div className="text-center text-gray-500 mt-10 animate-pulse">
             Loading hostels...
