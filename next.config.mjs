@@ -4,7 +4,11 @@ const nextConfig = {
     remotePatterns: [
       {
         protocol: "https",
-        hostname: "res.cloudinary.com", // ✅ allows your Cloudinary images
+        hostname: "res.cloudinary.com", // ✅ For Cloudinary-hosted images
+      },
+      {
+        protocol: "https",
+        hostname: "images.unsplash.com", // ✅ For Unsplash hero/about images
       },
     ],
   },

@@ -10,11 +10,14 @@ import { supabase } from "@/lib/supabaseClient";
 export default function NavbarPublic() {
   const pathname = usePathname();
   const router = useRouter();
+  const sidebarRef = useRef(null);
+
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
+  const [results, setResults] = useState([]);
+  const [loading, setLoading] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [session, setSession] = useState(null);
-  const sidebarRef = useRef(null);
 
   // ✅ Screen size detection
   useEffect(() => {
@@ -24,13 +27,14 @@ export default function NavbarPublic() {
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
-  // ✅ Supabase auth session
+  // ✅ Auth session
   useEffect(() => {
     const getSession = async () => {
       const { data } = await supabase.auth.getSession();
       setSession(data?.session);
     };
     getSession();
+
     const { data: listener } = supabase.auth.onAuthStateChange(
       (_, newSession) => setSession(newSession)
     );
@@ -43,35 +47,126 @@ export default function NavbarPublic() {
     router.push("/login");
   };
 
-  // ✅ Close drawer if click outside
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (sidebarRef.current && !sidebarRef.current.contains(event.target)) {
-        setOpen(false);
-      }
-    };
-    if (open) document.addEventListener("mousedown", handleClickOutside);
-    else document.removeEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [open]);
+  // ✅ Dynamic search (supports text + numeric)
+  const fetchResults = async (val) => {
+    if (!val.trim()) return setResults([]);
 
-  // ✅ Search bar settings
+    const cleanVal = val.replace(/,/g, "").trim();
+    setLoading(true);
+
+    try {
+      const table = pathname.startsWith("/hostels") ? "hostels" : "rooms";
+      const textFields =
+        table === "rooms"
+          ? ["title", "location", "description"]
+          : ["title", "location", "hostel_type", "description"];
+
+      const isNumber = !isNaN(cleanVal);
+      let queryBuilder = supabase.from(table).select("*").limit(8);
+
+      if (isNumber) {
+        queryBuilder = queryBuilder.or(
+          table === "rooms"
+            ? `price.eq.${cleanVal},price.gte.${cleanVal}`
+            : `price_per_semester.eq.${cleanVal},price_per_semester.gte.${cleanVal}`
+        );
+      } else {
+        const textQuery = textFields
+          .map((f) => `${f}.ilike.%${cleanVal}%`)
+          .join(",");
+        queryBuilder = queryBuilder.or(textQuery);
+      }
+
+      const { data, error } = await queryBuilder;
+      if (error) throw error;
+      setResults(data || []);
+    } catch (err) {
+      console.error("❌ Search error:", err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ✅ Debounce search input
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      if (query) fetchResults(query);
+      else setResults([]);
+    }, 400);
+    return () => clearTimeout(timeout);
+  }, [query, pathname]);
+
+  const handleResultClick = (id) => {
+    router.push(`${pathname}/${id}`);
+    setQuery("");
+    setResults([]);
+  };
+
+  // ✅ Detect page for showing search
   const showSearch =
     pathname.startsWith("/rooms") || pathname.startsWith("/hostels");
   const placeholder = pathname.includes("/hostels")
     ? "Search hostels..."
     : "Search rooms...";
 
-  const handleSearch = (e) => {
-    const val = e.target.value;
-    setQuery(val);
-    const params = new URLSearchParams(window.location.search);
-    if (val) params.set("q", val);
-    else params.delete("q");
-    router.replace(`${pathname}?${params.toString()}`);
-  };
+  const renderDropdown = () => (
+    <AnimatePresence>
+      {query && (
+        <motion.div
+          key="dropdown"
+          initial={{ opacity: 0, y: -6 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -6 }}
+          transition={{ duration: 0.25 }}
+          className="absolute top-10 left-0 w-full bg-white rounded-lg shadow-lg border border-gray-100 z-50 overflow-hidden"
+        >
+          {loading ? (
+            <div className="p-2 text-xs text-gray-500 text-center">
+              Searching...
+            </div>
+          ) : results.length > 0 ? (
+            results.map((r) => (
+              <motion.button
+                key={r.id}
+                onClick={() => handleResultClick(r.id)}
+                whileHover={{ scale: 1.02 }}
+                className="flex items-center gap-2 w-full text-left px-3 py-2 hover:bg-gray-50 border-b border-gray-100 last:border-none text-xs"
+              >
+                <img
+                  src={
+                    Array.isArray(r.images)
+                      ? r.images[0]
+                      : typeof r.images === "string"
+                      ? JSON.parse(r.images || "[]")[0]
+                      : r.image_url ||
+                        "https://res.cloudinary.com/demo/image/upload/no_image.png"
+                  }
+                  alt={r.title}
+                  className="w-10 h-10 object-cover rounded-md border border-gray-100"
+                />
+                <div className="flex-1 min-w-0">
+                  <p className="font-semibold text-[#142B6F] truncate">
+                    {r.title || "Untitled"}
+                  </p>
+                  <p className="text-[10px] text-gray-500 truncate">
+                    {r.location || "Unknown"}
+                  </p>
+                  <p className="text-[11px] text-[#FFD601] font-semibold mt-0.5">
+                    GH₵ {r.price || r.price_per_semester || "—"}
+                  </p>
+                </div>
+              </motion.button>
+            ))
+          ) : (
+            <div className="p-2 text-xs text-gray-500 text-center">
+              No results found.
+            </div>
+          )}
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
 
-  // ✅ Add Home link to navigation
   const navLinks = [
     { name: "Home", href: "/" },
     { name: "Rooms", href: "/rooms" },
@@ -81,10 +176,10 @@ export default function NavbarPublic() {
   ];
 
   return (
-    <header className="bg-white sticky top-0 z-50 border-b border-gray-100 shadow-sm">
-      {/* 🔹 MOBILE TOPBAR */}
+    <header className="bg-white sticky top-0 z-50 border-b border-gray-100 shadow-sm w-full">
+      {/* ✅ MOBILE TOP BAR */}
       {isMobile && (
-        <div className="flex items-center justify-between px-4 py-2 bg-gray-50 border-b border-gray-100">
+        <div className="flex items-center justify-between px-3 py-2 bg-gray-50 border-b border-gray-100 relative w-full">
           {/* Logo */}
           <Link href="/" className="flex items-center gap-1">
             <h1 className="text-xl font-extrabold text-[#142B6F]">
@@ -92,40 +187,45 @@ export default function NavbarPublic() {
             </h1>
           </Link>
 
-          {/* Search bar (always visible) */}
+          {/* Search */}
           {showSearch && (
-            <div className="flex items-center bg-white border border-gray-200 rounded-full px-3 py-1 w-[65%] shadow-sm">
-              <Search size={18} className="text-gray-500 mr-2" />
-              <input
-                type="text"
-                placeholder={placeholder}
-                value={query}
-                onChange={handleSearch}
-                className="bg-transparent outline-none text-sm text-gray-700 flex-1"
-              />
+            <div className="relative w-[55%] sm:w-[65%]">
+              <div className="flex items-center bg-white border border-gray-200 rounded-full px-3 py-1 shadow-sm">
+                <Search size={16} className="text-gray-500 mr-2" />
+                <input
+                  type="text"
+                  placeholder={placeholder}
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  className="bg-transparent outline-none text-sm text-gray-700 flex-1"
+                />
+              </div>
+              {renderDropdown()}
             </div>
           )}
 
-          {/* Hamburger button */}
+          {/* Menu button */}
           <button
             onClick={() => setOpen(!open)}
-            className="text-[#142B6F] ml-2 focus:outline-none"
+            className="text-[#142B6F] ml-2 focus:outline-none flex-shrink-0"
           >
-            {open ? <X size={26} /> : <Menu size={26} />}
+            {open ? <X size={24} /> : <Menu size={24} />}
           </button>
         </div>
       )}
 
-      {/* 🔹 DESKTOP NAVBAR */}
+      {/* ✅ DESKTOP NAVBAR */}
       {!isMobile && (
         <div className="max-w-7xl mx-auto flex items-center justify-between px-6 py-4">
+          {/* Logo */}
           <Link href="/" className="flex items-center gap-1">
             <h1 className="text-2xl font-extrabold text-[#142B6F]">
               Room<span className="text-[#FFD601]">Quest</span>
             </h1>
           </Link>
 
-          <nav className="hidden md:flex gap-8">
+          {/* Links */}
+          <nav className="flex gap-8">
             {navLinks.map((link) => (
               <Link
                 key={link.name}
@@ -141,55 +241,59 @@ export default function NavbarPublic() {
             ))}
           </nav>
 
+          {/* Search bar */}
           {showSearch && (
-            <div className="hidden md:flex items-center bg-gray-100 rounded-full px-4 py-2 w-80">
+            <div className="relative flex items-center bg-gray-100 rounded-full px-4 py-2 w-80">
               <Search size={18} className="text-gray-500 mr-2" />
               <input
                 type="text"
                 placeholder={placeholder}
                 value={query}
-                onChange={handleSearch}
-                className="bg-transparent outline-none text-gray-700 flex-1 text-sm"
+                onChange={(e) => setQuery(e.target.value)}
+                className="bg-transparent outline-none text-sm text-gray-700 flex-1"
               />
+              {renderDropdown()}
             </div>
           )}
 
-          {/* 🔐 Auth buttons */}
-          {!session ? (
-            <div className="flex items-center gap-3 ml-6">
-              <Link
-                href="/login"
-                className="flex items-center gap-1 text-sm font-semibold text-gray-700 hover:text-[#142B6F]"
-              >
-                <LogIn size={16} /> Login
-              </Link>
-              <Link
-                href="/signup"
-                className="flex items-center gap-1 bg-[#142B6F] text-white px-3 py-1.5 rounded-full text-sm font-semibold hover:bg-[#0f2257]"
-              >
-                <UserPlus size={16} /> Sign Up
-              </Link>
-            </div>
-          ) : (
-            <div className="flex items-center gap-3 ml-6">
-              <Link
-                href="/dashboard"
-                className="flex items-center gap-1 text-sm font-semibold text-gray-700 hover:text-[#142B6F]"
-              >
-                Dashboard
-              </Link>
-              <button
-                onClick={handleLogout}
-                className="flex items-center gap-1 text-sm text-red-600 font-semibold hover:text-red-700"
-              >
-                <LogOut size={16} /> Logout
-              </button>
-            </div>
-          )}
+          {/* Auth */}
+          <div className="flex items-center gap-3">
+            {!session ? (
+              <>
+                <Link
+                  href="/login"
+                  className="flex items-center gap-1 text-sm font-semibold text-gray-700 hover:text-[#142B6F]"
+                >
+                  <LogIn size={16} /> Login
+                </Link>
+                <Link
+                  href="/signup"
+                  className="flex items-center gap-1 bg-[#142B6F] text-white px-3 py-1.5 rounded-full text-sm font-semibold hover:bg-[#0f2257]"
+                >
+                  <UserPlus size={16} /> Sign Up
+                </Link>
+              </>
+            ) : (
+              <>
+                <Link
+                  href="/dashboard"
+                  className="flex items-center gap-1 text-sm font-semibold text-gray-700 hover:text-[#142B6F]"
+                >
+                  Dashboard
+                </Link>
+                <button
+                  onClick={handleLogout}
+                  className="flex items-center gap-1 text-sm text-red-600 font-semibold hover:text-red-700"
+                >
+                  <LogOut size={16} /> Logout
+                </button>
+              </>
+            )}
+          </div>
         </div>
       )}
 
-      {/* 📱 SIDE DRAWER MENU */}
+      {/* ✅ MOBILE SIDE DRAWER */}
       <AnimatePresence>
         {open && isMobile && (
           <>
@@ -199,6 +303,7 @@ export default function NavbarPublic() {
               animate={{ opacity: 0.4 }}
               exit={{ opacity: 0 }}
               className="fixed inset-0 bg-black z-40"
+              onClick={() => setOpen(false)}
             />
 
             {/* Sidebar */}

@@ -14,6 +14,7 @@ export default function AddHostelPage() {
     location: "",
     hostel_type: "",
     price_per_semester: "",
+    booking_fee: "", // 🆕 added field
     description: "",
     availability: "Available",
     verified: false,
@@ -45,7 +46,8 @@ export default function AddHostelPage() {
       !hostelData.title ||
       !hostelData.location ||
       !hostelData.hostel_type ||
-      !hostelData.price_per_semester
+      !hostelData.price_per_semester ||
+      !hostelData.booking_fee
     ) {
       setMessage({ type: "error", text: "Please fill all required fields." });
       return;
@@ -66,6 +68,7 @@ export default function AddHostelPage() {
           location: hostelData.location,
           hostel_type: hostelData.hostel_type,
           price_per_semester: parseFloat(hostelData.price_per_semester),
+          booking_fee: parseFloat(hostelData.booking_fee), // 🆕 save booking fee
           description: hostelData.description,
           availability: hostelData.availability,
           verified: hostelData.verified,
@@ -94,6 +97,7 @@ export default function AddHostelPage() {
           location: "",
           hostel_type: "",
           price_per_semester: "",
+          booking_fee: "",
           description: "",
           availability: "Available",
           verified: false,
@@ -195,6 +199,21 @@ export default function AddHostelPage() {
                   className="w-full p-3 rounded-xl bg-[#142B6F]/80 border-2 border-[#FFD601]/30 text-white placeholder-blue-300 focus:border-[#FFD601] focus:outline-none"
                 />
               </div>
+
+              {/* 🆕 Booking Fee */}
+              <div>
+                <label className="block text-[#FFD601] font-semibold mb-2">
+                  Booking Fee (₵) *
+                </label>
+                <input
+                  type="number"
+                  name="booking_fee"
+                  value={hostelData.booking_fee}
+                  onChange={handleChange}
+                  placeholder="₵197"
+                  className="w-full p-3 rounded-xl bg-[#142B6F]/80 border-2 border-[#FFD601]/30 text-white placeholder-blue-300 focus:border-[#FFD601] focus:outline-none"
+                />
+              </div>
             </div>
 
             {/* Description */}
@@ -207,7 +226,7 @@ export default function AddHostelPage() {
                 value={hostelData.description}
                 onChange={handleChange}
                 rows={4}
-                placeholder="Spacious rooms, free Wi-Fi, 24/7 security, shared kitchen..."
+                placeholder="Spacious rooms, free Wi-Fi, 24/7 security..."
                 className="w-full p-3 rounded-xl bg-[#142B6F]/80 border-2 border-[#FFD601]/30 text-white placeholder-blue-300 focus:border-[#FFD601] focus:outline-none resize-vertical"
               />
             </div>

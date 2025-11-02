@@ -14,7 +14,7 @@ export default function HostelsPage() {
       try {
         setLoading(true);
 
-        // ✅ Match exact column names from your Supabase table
+        // ✅ Fetch all hostels safely
         const { data, error } = await supabase
           .from("hostels")
           .select(
@@ -24,6 +24,7 @@ export default function HostelsPage() {
             location,
             hostel_type,
             price_per_semester,
+            booking_fee,
             description,
             images,
             availability,
@@ -34,7 +35,13 @@ export default function HostelsPage() {
           .order("created_at", { ascending: false });
 
         if (error) throw error;
-        setHostels(data || []);
+
+        // ✅ Filter out undefined or empty rows
+        const validHostels = (data || []).filter(
+          (h) => h && typeof h === "object" && h.title
+        );
+
+        setHostels(validHostels);
       } catch (err) {
         console.error("❌ Error fetching hostels:", err.message);
       } finally {

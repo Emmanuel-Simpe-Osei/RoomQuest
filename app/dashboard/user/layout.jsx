@@ -12,7 +12,7 @@ import {
   Menu,
   X,
   Home,
-  Video, // 🎥 Added for Distance Booking link
+  Video,
 } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import toast from "react-hot-toast";
@@ -22,9 +22,35 @@ const GOLD = "#FFD601";
 
 export default function UserDashboardLayout({ children }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [userName, setUserName] = useState("");
   const sidebarRef = useRef(null);
   const pathname = usePathname();
   const router = useRouter();
+
+  // ✅ Fetch logged-in user’s profile name
+  useEffect(() => {
+    const fetchUserName = async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user) return;
+
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("full_name")
+        .eq("id", user.id)
+        .single();
+
+      if (error) {
+        console.error("Failed to fetch user name:", error.message);
+      } else {
+        setUserName(data?.full_name || user.email.split("@")[0]);
+      }
+    };
+
+    fetchUserName();
+  }, []);
 
   // ✅ Logout
   const handleLogout = async () => {
@@ -44,7 +70,7 @@ export default function UserDashboardLayout({ children }) {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [sidebarOpen]);
 
-  // ✅ Navigation Links (added Distance Booking)
+  // ✅ Navigation Links
   const navLinks = [
     { name: "Dashboard", href: "/dashboard/user", icon: LayoutDashboard },
     {
@@ -56,10 +82,10 @@ export default function UserDashboardLayout({ children }) {
     {
       name: "Distance Booking",
       href: "/dashboard/user/distance-info",
-      icon: Video, // 🎥 New icon
+      icon: Video,
     },
     { name: "Support", href: "/dashboard/user/support", icon: MessageCircle },
-    { name: "Rooms", href: "/rooms", icon: Home }, // 🔥 Quick room access
+    { name: "Rooms", href: "/rooms", icon: Home },
   ];
 
   return (
@@ -72,7 +98,7 @@ export default function UserDashboardLayout({ children }) {
         />
       )}
 
-      {/* 🧭 Sidebar (always visible on desktop) */}
+      {/* 🧭 Sidebar */}
       <aside
         ref={sidebarRef}
         className={`${
@@ -146,9 +172,11 @@ export default function UserDashboardLayout({ children }) {
         <header className="hidden md:flex items-center justify-between w-full h-16 bg-white border-b border-gray-100 shadow-sm px-8">
           <h1 className="text-xl font-bold text-[#142B6F]">User Dashboard</h1>
           <div className="flex items-center gap-4">
-            <span className="text-gray-700 font-medium">Hi, Emmanuel 👋🏽</span>
+            <span className="text-gray-700 font-medium">
+              Hi, {userName || "User"} 👋🏽
+            </span>
             <div className="w-10 h-10 rounded-full bg-[#FFD601]/40 flex items-center justify-center text-[#142B6F] font-bold">
-              E
+              {(userName?.[0] || "U").toUpperCase()}
             </div>
           </div>
         </header>

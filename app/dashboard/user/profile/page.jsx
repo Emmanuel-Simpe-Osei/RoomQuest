@@ -1,4 +1,4 @@
-"use client";
+"use client"; // must be first line (no space or comment above)
 
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
@@ -6,10 +6,7 @@ import { supabase } from "@/lib/supabaseClient";
 import { Loader2, Save, User, Lock } from "lucide-react";
 import toast from "react-hot-toast";
 
-const NAVY = "#142B6F";
-const GOLD = "#FFD601";
-
-export default function ProfilePage() {
+const ProfilePage = () => {
   const [profile, setProfile] = useState({
     full_name: "",
     email: "",
@@ -20,115 +17,133 @@ export default function ProfilePage() {
   const [saving, setSaving] = useState(false);
   const [changingPassword, setChangingPassword] = useState(false);
 
-  // For password change
   const [passwords, setPasswords] = useState({
-    current: "",
     new: "",
     confirm: "",
   });
 
-  // ✅ Load user profile
+  // ✅ Load user profile (auto-create if missing)
   useEffect(() => {
     const fetchProfile = async () => {
-      setLoading(true);
+      try {
+        setLoading(true);
 
-      const {
-        data: { user },
-        error: userError,
-      } = await supabase.auth.getUser();
+        const {
+          data: { user },
+          error: userError,
+        } = await supabase.auth.getUser();
 
-      if (userError || !user) {
-        toast.error("Please log in again.");
+        if (userError || !user) {
+          toast.error("Please log in again.");
+          return;
+        }
+
+        const { data, error } = await supabase
+          .from("profiles")
+          .select("full_name, email, whatsapp")
+          .eq("id", user.id)
+          .maybeSingle();
+
+        if (error) {
+          console.error("Profile fetch error:", error.message);
+          toast.error("Error fetching profile.");
+        } else if (!data) {
+          // 🆕 Create profile if missing
+          const { error: insertError } = await supabase
+            .from("profiles")
+            .insert([
+              {
+                id: user.id,
+                email: user.email,
+                full_name: "",
+                whatsapp: "",
+                role: "user",
+              },
+            ]);
+          if (insertError)
+            console.error("Auto-create profile error:", insertError.message);
+          setProfile({
+            full_name: "",
+            email: user.email,
+            whatsapp: "",
+          });
+        } else {
+          setProfile({
+            full_name: data.full_name || "",
+            email: data.email || user.email,
+            whatsapp: data.whatsapp || "",
+          });
+        }
+      } catch (err) {
+        console.error("Profile load exception:", err);
+      } finally {
         setLoading(false);
-        return;
       }
-
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("full_name, email, whatsapp")
-        .eq("id", user.id)
-        .single();
-
-      if (error) {
-        console.error(error);
-        toast.error("Could not fetch profile.");
-      } else {
-        setProfile({
-          full_name: data.full_name || "",
-          email: data.email || user.email,
-          whatsapp: data.whatsapp || "",
-        });
-      }
-      setLoading(false);
     };
 
     fetchProfile();
   }, []);
 
-  // ✅ Update profile details
+  // ✅ Save profile
   const handleSave = async () => {
     if (!profile.full_name.trim()) {
-      toast.error("Please enter your name.");
+      toast.error("Please enter your full name.");
       return;
     }
 
     setSaving(true);
+    try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
 
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    const { error } = await supabase
-      .from("profiles")
-      .update({
+      const { error } = await supabase.from("profiles").upsert({
+        id: user.id,
+        email: profile.email,
         full_name: profile.full_name,
         whatsapp: profile.whatsapp,
         updated_at: new Date().toISOString(),
-      })
-      .eq("id", user.id);
+      });
 
-    if (error) {
-      console.error(error);
-      toast.error("Failed to update profile.");
-    } else {
+      if (error) throw error;
       toast.success("Profile updated successfully!");
+    } catch (err) {
+      console.error("Save error:", err.message);
+      toast.error("Failed to update profile.");
+    } finally {
+      setSaving(false);
     }
-
-    setSaving(false);
   };
 
   // ✅ Change password
   const handleChangePassword = async () => {
     if (!passwords.new || !passwords.confirm) {
-      toast.error("Please fill in all password fields.");
+      toast.error("Please fill in all fields.");
       return;
     }
-
     if (passwords.new.length < 6) {
-      toast.error("Password must be at least 6 characters long.");
+      toast.error("Password must be at least 6 characters.");
       return;
     }
-
     if (passwords.new !== passwords.confirm) {
       toast.error("Passwords do not match.");
       return;
     }
 
     setChangingPassword(true);
-
-    const { error } = await supabase.auth.updateUser({
-      password: passwords.new,
-    });
-
-    if (error) {
-      console.error(error);
-      toast.error("Failed to change password.");
-    } else {
+    try {
+      const { error } = await supabase.auth.updateUser({
+        password: passwords.new,
+      });
+      if (error) throw error;
       toast.success("Password updated successfully!");
-      setPasswords({ current: "", new: "", confirm: "" });
+      setPasswords({ new: "", confirm: "" });
+    } catch (err) {
+      console.error("Password error:", err.message);
+      toast.error("Failed to update password.");
+    } finally {
+      setChangingPassword(false);
     }
-
-    setChangingPassword(false);
   };
 
   if (loading) {
@@ -146,7 +161,7 @@ export default function ProfilePage() {
       animate={{ opacity: 1, y: 0 }}
       className="bg-white border border-gray-100 rounded-2xl shadow-sm p-8 max-w-3xl mx-auto space-y-10"
     >
-      {/* 🧍 User Info Section */}
+      {/* 🧍 Profile Info */}
       <div>
         <div className="flex items-center gap-3 mb-6">
           <div className="w-12 h-12 rounded-full bg-[#FFD601]/30 flex items-center justify-center">
@@ -155,8 +170,8 @@ export default function ProfilePage() {
           <h1 className="text-2xl font-bold text-[#142B6F]">My Profile</h1>
         </div>
 
+        {/* Full Name */}
         <div className="space-y-5">
-          {/* Full Name */}
           <div>
             <label className="block text-sm font-medium text-gray-600 mb-1">
               Full Name
@@ -183,12 +198,9 @@ export default function ProfilePage() {
               disabled
               className="w-full border border-gray-200 rounded-lg px-4 py-2 bg-gray-100 text-gray-500 cursor-not-allowed"
             />
-            <p className="text-xs text-gray-400 mt-1">
-              (Your account email cannot be changed)
-            </p>
           </div>
 
-          {/* WhatsApp Number */}
+          {/* WhatsApp */}
           <div>
             <label className="block text-sm font-medium text-gray-600 mb-1">
               WhatsApp Number
@@ -288,4 +300,6 @@ export default function ProfilePage() {
       </div>
     </motion.div>
   );
-}
+};
+
+export default ProfilePage;
