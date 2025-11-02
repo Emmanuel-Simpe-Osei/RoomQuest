@@ -6,18 +6,15 @@ import Link from "next/link";
 import { Search } from "lucide-react";
 import { useRouter } from "next/navigation";
 
-// ✅ Import images from app/images folder
-import img1 from "@/app/images/img1.jpg";
-import img2 from "@/app/images/img2.jpg";
-import img3 from "@/app/images/img3.jpg";
-
-const heroImages = [img1.src, img2.src, img3.src];
+// ✅ Images are now served directly from /public/images/
+const heroImages = ["/images/img1.jpg", "/images/img2.jpg", "/images/img3.jpg"];
 
 export default function HeroSection() {
   const [current, setCurrent] = useState(0);
   const [query, setQuery] = useState("");
   const router = useRouter();
 
+  // 🌀 Auto-rotate backgrounds every 5 seconds
   useEffect(() => {
     const timer = setInterval(
       () => setCurrent((prev) => (prev + 1) % heroImages.length),
@@ -26,6 +23,7 @@ export default function HeroSection() {
     return () => clearInterval(timer);
   }, []);
 
+  // 🔍 Search redirect
   const handleSearch = (e) => {
     e.preventDefault();
     if (query.trim()) router.push(`/rooms?q=${query}`);
@@ -39,7 +37,7 @@ export default function HeroSection() {
           <motion.img
             key={current}
             src={heroImages[current]}
-            alt="Hero background"
+            alt="RoomQuest hero background"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -47,6 +45,7 @@ export default function HeroSection() {
             className="absolute inset-0 w-full h-full object-cover"
           />
         </AnimatePresence>
+        {/* Gradient overlay for readability */}
         <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-black/40 to-black/60" />
       </div>
 
@@ -89,7 +88,7 @@ export default function HeroSection() {
           </button>
         </motion.form>
 
-        {/* 🧭 Buttons */}
+        {/* 🧭 Action buttons */}
         <motion.div
           initial={{ opacity: 0, y: 40 }}
           animate={{ opacity: 1, y: 0 }}
