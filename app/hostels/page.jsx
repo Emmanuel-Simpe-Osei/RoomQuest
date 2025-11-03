@@ -4,10 +4,12 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { motion } from "framer-motion";
 import HostelCard from "@/components/public/HostelCard";
+import { useRouter } from "next/navigation";
 
 export default function HostelsPage() {
   const [hostels, setHostels] = useState([]);
   const [loading, setLoading] = useState(true);
+  const router = useRouter();
 
   useEffect(() => {
     const fetchHostels = async () => {
@@ -51,6 +53,10 @@ export default function HostelsPage() {
 
     fetchHostels();
   }, []);
+
+  // Debug: Check if hostels are loading properly
+  console.log("Hostels data:", hostels);
+  console.log("Loading state:", loading);
 
   return (
     <main className="min-h-screen bg-gray-50 px-6 md:px-16 py-10">

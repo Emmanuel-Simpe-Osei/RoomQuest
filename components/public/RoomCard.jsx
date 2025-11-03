@@ -13,12 +13,12 @@ import {
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { supabase } from "@/lib/supabaseClient";
-import { loadPaystack } from "@/lib/paystackLoader"; // ✅ global SDK loader
+import { loadPaystack } from "@/lib/paystackLoader"; // ✅ Paystack loader util
 
 const GOLD = "#FFD601";
 const NAVY = "#142B6F";
 
-// 🕓 Helper: Format how long ago
+// 🕓 Helper: how long ago
 function timeAgo(dateStr) {
   if (!dateStr) return "";
   const diff = Date.now() - new Date(dateStr).getTime();
@@ -42,7 +42,7 @@ export default function RoomCard({ room, onOpenGallery }) {
 
   const handleBookNow = () => setShowModal(true);
 
-  // ✅ PAYSTACK HANDLER (now clean and reliable)
+  // ✅ PAYSTACK HANDLER
   const handlePayment = async () => {
     if (!room?.booking_price)
       return toast.error("No booking fee for this room.");
@@ -63,15 +63,17 @@ export default function RoomCard({ room, onOpenGallery }) {
     try {
       const PaystackPop = await loadPaystack();
 
-      // ✅ Define callbacks as plain functions
-      function onSuccess(response) {
-        toast.success("Payment successful!");
-        setPaymentSuccess(true);
+      const handler = PaystackPop.setup({
+        key: process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY,
+        email: user.email || "booking@roomquest.com",
+        amount: room.booking_price * 100,
+        currency: "GHS",
+        reference: `RQ-${Date.now()}`,
+        callback: async (response) => {
+          toast.success("Payment successful!");
+          setPaymentSuccess(true);
 
-        // Save booking to Supabase
-        supabase
-          .from("bookings")
-          .insert([
+          const { error } = await supabase.from("bookings").insert([
             {
               user_id: user.id,
               room_id: room.id,
@@ -80,35 +82,23 @@ export default function RoomCard({ room, onOpenGallery }) {
               reference: response.reference,
               created_at: new Date().toISOString(),
             },
-          ])
-          .then(({ error }) => {
-            if (error) {
-              console.error("Booking save error:", error.message);
-              toast.error("Could not save booking.");
-            } else {
-              console.log("✅ Booking saved successfully!");
-            }
+          ]);
 
-            setTimeout(() => {
-              window.location.href = "/dashboard/user/bookings";
-            }, 2500);
-          });
-      }
+          if (error) {
+            console.error("Booking save error:", error.message);
+            toast.error("Could not save booking.");
+          } else {
+            console.log("✅ Booking saved successfully!");
+          }
 
-      function onClose() {
-        toast("Payment window closed.");
-        setPaying(false);
-      }
-
-      // ✅ Setup Paystack
-      const handler = PaystackPop.setup({
-        key: process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY,
-        email: user.email || "booking@roomquest.com",
-        amount: room.booking_price * 100,
-        currency: "GHS",
-        reference: `RQ-${Date.now()}`,
-        callback: onSuccess,
-        onClose: onClose,
+          setTimeout(() => {
+            window.location.href = "/dashboard/user/bookings";
+          }, 2500);
+        },
+        onClose: () => {
+          toast("Payment window closed.");
+          setPaying(false);
+        },
         metadata: {
           custom_fields: [
             {
@@ -125,9 +115,8 @@ export default function RoomCard({ room, onOpenGallery }) {
         },
       });
 
-      if (!handler || typeof handler.openIframe !== "function") {
+      if (!handler || typeof handler.openIframe !== "function")
         throw new Error("Paystack handler not ready yet.");
-      }
 
       handler.openIframe();
     } catch (err) {
@@ -138,8 +127,21 @@ export default function RoomCard({ room, onOpenGallery }) {
     }
   };
 
+  // ✅ Safe image parser (works with JSON or array)
+  const parsedImages = (() => {
+    if (Array.isArray(room.images)) return room.images;
+    if (typeof room.images === "string") {
+      try {
+        return JSON.parse(room.images);
+      } catch {
+        return [room.images];
+      }
+    }
+    return [];
+  })();
+
   const handleImageClick = () => {
-    if (!occupied) onOpenGallery?.(room.images || [], 0);
+    if (!occupied) onOpenGallery?.(parsedImages, 0);
   };
 
   return (
@@ -156,7 +158,7 @@ export default function RoomCard({ room, onOpenGallery }) {
           occupied ? "opacity-60 grayscale" : booked ? "opacity-80" : ""
         }`}
       >
-        {/* Status */}
+        {/* Status badges */}
         {(occupied || booked) && (
           <div className="absolute top-3 left-3 z-10">
             <span
@@ -185,9 +187,9 @@ export default function RoomCard({ room, onOpenGallery }) {
           }`}
           onClick={handleImageClick}
         >
-          {room.images?.length ? (
+          {parsedImages.length > 0 ? (
             <img
-              src={room.images[0]}
+              src={parsedImages[0]}
               alt={room.title}
               className="w-full h-full object-cover"
             />
@@ -204,10 +206,18 @@ export default function RoomCard({ room, onOpenGallery }) {
           <h3 className="text-lg font-bold text-[#142B6F] line-clamp-2">
             {room.title}
           </h3>
+
           <div className="flex items-center gap-2 text-gray-600 text-sm">
             <MapPin size={15} />
             <span>{room.location}</span>
           </div>
+
+          {/* ✅ Description (now visible) */}
+          {room.description && (
+            <p className="text-gray-700 text-sm line-clamp-3">
+              {room.description}
+            </p>
+          )}
 
           <div className="flex justify-between items-center">
             <span className="text-sm font-medium bg-blue-50 text-blue-700 px-3 py-1 rounded-full border border-blue-200">

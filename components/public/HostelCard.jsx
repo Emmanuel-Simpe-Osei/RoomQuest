@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { MapPin, Calendar, X, Loader2, CheckCircle2 } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
+import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 import GalleryModal from "@/components/public/GalleryModal";
 
@@ -11,7 +12,7 @@ const NAVY = "#142B6F";
 const GOLD = "#FFD601";
 
 /* -----------------------------------------------------
-   ✅ Safe Paystack Loader (same as RoomCard)
+   ✅ Safe Paystack Loader
 ------------------------------------------------------ */
 async function loadPaystack() {
   return new Promise((resolve, reject) => {
@@ -36,6 +37,8 @@ async function loadPaystack() {
    🏠 HostelCard Component
 ------------------------------------------------------ */
 export default function HostelCard({ hostel }) {
+  const router = useRouter();
+
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [currentImage, setCurrentImage] = useState(0);
   const [showBookingModal, setShowBookingModal] = useState(false);
@@ -53,6 +56,63 @@ export default function HostelCard({ hostel }) {
   const nextImage = () => setCurrentImage((prev) => (prev + 1) % images.length);
   const prevImage = () =>
     setCurrentImage((prev) => (prev - 1 + images.length) % images.length);
+
+  /* -----------------------------------------------------
+     🔄 Redirect Effect
+  ------------------------------------------------------ */
+  useEffect(() => {
+    if (paymentSuccess && showBookingModal) {
+      const redirectTimer = setTimeout(() => {
+        // Close modal first
+        setShowBookingModal(false);
+        setPaymentSuccess(false);
+        setPaying(false);
+
+        // Redirect to bookings page
+        router.push("/dashboard/user/bookings");
+      }, 2000);
+
+      return () => clearTimeout(redirectTimer);
+    }
+  }, [paymentSuccess, showBookingModal, router]);
+
+  /* -----------------------------------------------------
+     ✅ Separate function for payment success handling
+  ------------------------------------------------------ */
+  const handlePaymentSuccess = async (response, user) => {
+    try {
+      // ✅ Save booking in Supabase
+      const { error } = await supabase.from("hostel_bookings").insert([
+        {
+          user_id: user.id,
+          hostel_id: hostel.id,
+          whatsapp: userWhatsApp,
+          status: "paid",
+          reference: response.reference,
+          created_at: new Date().toISOString(),
+        },
+      ]);
+
+      if (error) {
+        console.error("Booking save error:", error.message);
+        toast.error(
+          "Payment successful but booking save failed. Please contact support."
+        );
+        setPaying(false);
+        return;
+      }
+
+      // ✅ Trigger success state to start redirect
+      setPaymentSuccess(true);
+      toast.success("Payment successful! Redirecting to bookings...");
+    } catch (err) {
+      console.error("Post-payment error:", err);
+      toast.error(
+        "Payment successful but something went wrong. You will be redirected."
+      );
+      setPaymentSuccess(true);
+    }
+  };
 
   /* -----------------------------------------------------
      💳 Paystack Payment + Supabase Save
@@ -79,49 +139,22 @@ export default function HostelCard({ hostel }) {
     try {
       const PaystackPop = await loadPaystack();
 
-      // ✅ Configure Paystack with proper callback functions
       const handler = PaystackPop.setup({
         key: process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY,
         email: user.email || "booking@roomquest.com",
         amount: hostel.booking_fee * 100,
         currency: "GHS",
-        reference: `RQ-HOSTEL-${Date.now()}`,
-        onSuccess: async (response) => {
-          // ✅ Success callback
-          toast.success("Payment successful!");
-          setPaymentSuccess(true);
-
-          const { error } = await supabase.from("hostel_bookings").insert([
-            {
-              user_id: user.id,
-              hostel_id: hostel.id,
-              whatsapp: userWhatsApp,
-              status: "paid",
-              reference: response.reference,
-              created_at: new Date().toISOString(),
-            },
-          ]);
-
-          if (error) {
-            console.error("Booking save error:", error.message);
-            toast.error("Booking save failed.");
-          } else {
-            console.log("✅ Booking saved successfully!");
-          }
-
-          setTimeout(() => {
-            window.location.href = "/dashboard/user/bookings";
-          }, 2500);
-        },
-        onCancel: () => {
-          // ✅ Cancel callback
-          toast("Payment cancelled.");
-          setPaying(false);
+        reference: `RQ-HOSTEL-${Date.now()}-${Math.random()
+          .toString(36)
+          .substr(2, 9)}`,
+        callback: (response) => {
+          handlePaymentSuccess(response, user);
         },
         onClose: () => {
-          // ✅ Close callback
-          toast("Payment window closed.");
-          setPaying(false);
+          if (!paymentSuccess) {
+            toast("Payment window closed.");
+            setPaying(false);
+          }
         },
         metadata: {
           custom_fields: [
@@ -134,6 +167,11 @@ export default function HostelCard({ hostel }) {
               display_name: "Hostel Name",
               variable_name: "hostel_name",
               value: hostel.title,
+            },
+            {
+              display_name: "User ID",
+              variable_name: "user_id",
+              value: user.id,
             },
           ],
         },
@@ -148,6 +186,18 @@ export default function HostelCard({ hostel }) {
       console.error("Paystack error:", err);
       toast.error("Payment could not start. Please try again.");
       setPaying(false);
+    }
+  };
+
+  /* -----------------------------------------------------
+     🎯 Close Modal Handler
+  ------------------------------------------------------ */
+  const closeBookingModal = () => {
+    if (!paying && !paymentSuccess) {
+      setShowBookingModal(false);
+      setUserWhatsApp("");
+      setPaying(false);
+      setPaymentSuccess(false);
     }
   };
 
@@ -238,7 +288,7 @@ export default function HostelCard({ hostel }) {
         </div>
       </motion.div>
 
-      {/* Gallery Modal */}
+      {/* 🖼️ Gallery Modal */}
       <GalleryModal
         open={isModalOpen}
         images={images}
@@ -249,7 +299,7 @@ export default function HostelCard({ hostel }) {
         onPrev={prevImage}
       />
 
-      {/* Booking Modal */}
+      {/* 💳 Booking Modal */}
       <AnimatePresence>
         {showBookingModal && (
           <motion.div
@@ -265,12 +315,15 @@ export default function HostelCard({ hostel }) {
               transition={{ duration: 0.3 }}
               className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-lg relative text-center"
             >
-              <button
-                onClick={() => setShowBookingModal(false)}
-                className="absolute top-4 right-4 text-gray-400 hover:text-gray-600"
-              >
-                <X size={20} />
-              </button>
+              {!paymentSuccess && (
+                <button
+                  onClick={closeBookingModal}
+                  className="absolute top-4 right-4 text-gray-400 hover:text-gray-600"
+                  disabled={paying}
+                >
+                  <X size={20} />
+                </button>
+              )}
 
               {paymentSuccess ? (
                 <div className="py-6 flex flex-col items-center">
@@ -279,8 +332,11 @@ export default function HostelCard({ hostel }) {
                     Payment Successful!
                   </h3>
                   <p className="text-gray-600 text-sm mt-2">
-                    Booking confirmed 🎉
+                    Booking confirmed 🎉 Redirecting to your bookings...
                   </p>
+                  <div className="mt-4 w-full bg-gray-100 rounded-full h-2">
+                    <div className="bg-green-500 h-2 rounded-full animate-pulse"></div>
+                  </div>
                 </div>
               ) : (
                 <>
@@ -305,14 +361,15 @@ export default function HostelCard({ hostel }) {
                     value={userWhatsApp}
                     onChange={(e) => setUserWhatsApp(e.target.value)}
                     className="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm mb-4 focus:ring-2 focus:ring-[#FFD601]/60 outline-none"
+                    disabled={paying}
                   />
 
                   <motion.button
                     whileHover={!paying ? { scale: 1.02 } : {}}
                     whileTap={!paying ? { scale: 0.98 } : {}}
-                    disabled={paying}
-                    onClick={!paying ? handlePayment : undefined}
-                    className="w-full bg-[#FFD601] text-[#142B6F] font-semibold py-3 rounded-lg hover:bg-[#ffdf3b] transition-all duration-200 flex justify-center items-center gap-2 disabled:opacity-60"
+                    disabled={paying || !userWhatsApp.trim()}
+                    onClick={handlePayment}
+                    className="w-full bg-[#FFD601] text-[#142B6F] font-semibold py-3 rounded-lg hover:bg-[#ffdf3b] transition-all duration-200 flex justify-center items-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
                   >
                     {paying ? (
                       <>
@@ -325,8 +382,9 @@ export default function HostelCard({ hostel }) {
                   </motion.button>
 
                   <button
-                    onClick={() => setShowBookingModal(false)}
-                    className="w-full mt-3 text-sm text-gray-500 hover:text-gray-700"
+                    onClick={closeBookingModal}
+                    disabled={paying}
+                    className="w-full mt-3 text-sm text-gray-500 hover:text-gray-700 disabled:opacity-50"
                   >
                     Cancel
                   </button>
