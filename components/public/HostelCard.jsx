@@ -2,7 +2,14 @@
 
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { MapPin, Calendar, X, Loader2, CheckCircle2 } from "lucide-react";
+import {
+  MapPin,
+  Calendar,
+  X,
+  Loader2,
+  CheckCircle2,
+  LogIn,
+} from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
@@ -38,50 +45,38 @@ async function loadPaystack() {
 ------------------------------------------------------ */
 export default function HostelCard({ hostel }) {
   const router = useRouter();
-
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [currentImage, setCurrentImage] = useState(0);
   const [showBookingModal, setShowBookingModal] = useState(false);
+  const [authPrompt, setAuthPrompt] = useState(false); // ✅ new
   const [userWhatsApp, setUserWhatsApp] = useState("");
   const [paying, setPaying] = useState(false);
   const [paymentSuccess, setPaymentSuccess] = useState(false);
 
-  // ✅ Parse Cloudinary images safely
   const images = Array.isArray(hostel?.images)
     ? hostel.images
     : hostel?.images
     ? JSON.parse(hostel.images)
     : [];
 
-  const nextImage = () => setCurrentImage((prev) => (prev + 1) % images.length);
+  const nextImage = () => setCurrentImage((p) => (p + 1) % images.length);
   const prevImage = () =>
-    setCurrentImage((prev) => (prev - 1 + images.length) % images.length);
+    setCurrentImage((p) => (p - 1 + images.length) % images.length);
 
-  /* -----------------------------------------------------
-     🔄 Redirect Effect
-  ------------------------------------------------------ */
   useEffect(() => {
     if (paymentSuccess && showBookingModal) {
-      const redirectTimer = setTimeout(() => {
-        // Close modal first
+      const t = setTimeout(() => {
         setShowBookingModal(false);
         setPaymentSuccess(false);
         setPaying(false);
-
-        // Redirect to bookings page
         router.push("/dashboard/user/bookings");
       }, 2000);
-
-      return () => clearTimeout(redirectTimer);
+      return () => clearTimeout(t);
     }
   }, [paymentSuccess, showBookingModal, router]);
 
-  /* -----------------------------------------------------
-     ✅ Separate function for payment success handling
-  ------------------------------------------------------ */
   const handlePaymentSuccess = async (response, user) => {
     try {
-      // ✅ Save booking in Supabase
       const { error } = await supabase.from("hostel_bookings").insert([
         {
           user_id: user.id,
@@ -92,30 +87,23 @@ export default function HostelCard({ hostel }) {
           created_at: new Date().toISOString(),
         },
       ]);
-
       if (error) {
         console.error("Booking save error:", error.message);
-        toast.error(
-          "Payment successful but booking save failed. Please contact support."
-        );
+        toast.error("Payment successful but booking save failed.");
         setPaying(false);
         return;
       }
-
-      // ✅ Trigger success state to start redirect
       setPaymentSuccess(true);
-      toast.success("Payment successful! Redirecting to bookings...");
+      toast.success("Payment successful! Redirecting...");
     } catch (err) {
       console.error("Post-payment error:", err);
-      toast.error(
-        "Payment successful but something went wrong. You will be redirected."
-      );
+      toast.error("Payment saved with issues. Redirecting soon...");
       setPaymentSuccess(true);
     }
   };
 
   /* -----------------------------------------------------
-     💳 Paystack Payment + Supabase Save
+     💳 Paystack Payment
   ------------------------------------------------------ */
   const handlePayment = async () => {
     if (!hostel?.booking_fee)
@@ -124,21 +112,20 @@ export default function HostelCard({ hostel }) {
       return toast.error("Please enter your WhatsApp number.");
 
     setPaying(true);
-
     const {
       data: { user },
       error: userError,
     } = await supabase.auth.getUser();
 
+    // ✅ Auth check before pay
     if (userError || !user) {
-      toast.error("Please log in first.");
+      setAuthPrompt(true);
       setPaying(false);
       return;
     }
 
     try {
       const PaystackPop = await loadPaystack();
-
       const handler = PaystackPop.setup({
         key: process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY,
         email: user.email || "booking@roomquest.com",
@@ -147,9 +134,7 @@ export default function HostelCard({ hostel }) {
         reference: `RQ-HOSTEL-${Date.now()}-${Math.random()
           .toString(36)
           .substr(2, 9)}`,
-        callback: (response) => {
-          handlePaymentSuccess(response, user);
-        },
+        callback: (response) => handlePaymentSuccess(response, user),
         onClose: () => {
           if (!paymentSuccess) {
             toast("Payment window closed.");
@@ -168,30 +153,20 @@ export default function HostelCard({ hostel }) {
               variable_name: "hostel_name",
               value: hostel.title,
             },
-            {
-              display_name: "User ID",
-              variable_name: "user_id",
-              value: user.id,
-            },
           ],
         },
       });
 
-      if (!handler || typeof handler.openIframe !== "function") {
+      if (!handler || typeof handler.openIframe !== "function")
         throw new Error("Paystack handler not ready yet.");
-      }
-
       handler.openIframe();
     } catch (err) {
       console.error("Paystack error:", err);
-      toast.error("Payment could not start. Please try again.");
+      toast.error("Payment could not start. Try again.");
       setPaying(false);
     }
   };
 
-  /* -----------------------------------------------------
-     🎯 Close Modal Handler
-  ------------------------------------------------------ */
   const closeBookingModal = () => {
     if (!paying && !paymentSuccess) {
       setShowBookingModal(false);
@@ -199,6 +174,21 @@ export default function HostelCard({ hostel }) {
       setPaying(false);
       setPaymentSuccess(false);
     }
+  };
+
+  /* -----------------------------------------------------
+     📦 Book Now with login check
+  ------------------------------------------------------ */
+  const handleBookNow = async () => {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      setAuthPrompt(true);
+      return;
+    }
+    setShowBookingModal(true);
   };
 
   /* -----------------------------------------------------
@@ -214,7 +204,6 @@ export default function HostelCard({ hostel }) {
         transition={{ type: "spring", stiffness: 200, damping: 25 }}
         className="relative bg-white rounded-2xl overflow-hidden shadow-md hover:shadow-xl transition-all duration-300 border border-gray-100"
       >
-        {/* Image */}
         <div
           className="relative h-56 cursor-pointer overflow-hidden"
           onClick={() => setIsModalOpen(true)}
@@ -237,7 +226,6 @@ export default function HostelCard({ hostel }) {
           )}
         </div>
 
-        {/* Content */}
         <div className="p-5">
           <h3 className="text-lg font-bold text-gray-900 line-clamp-1">
             {hostel.title}
@@ -279,7 +267,7 @@ export default function HostelCard({ hostel }) {
             </div>
 
             <button
-              onClick={() => setShowBookingModal(true)}
+              onClick={handleBookNow}
               className="mt-4 block text-center w-full bg-[#142B6F] text-white text-sm font-semibold py-2 rounded-lg hover:bg-[#1A2D7A] transition-all"
             >
               Book Now
@@ -332,7 +320,7 @@ export default function HostelCard({ hostel }) {
                     Payment Successful!
                   </h3>
                   <p className="text-gray-600 text-sm mt-2">
-                    Booking confirmed 🎉 Redirecting to your bookings...
+                    Booking confirmed 🎉 Redirecting...
                   </p>
                   <div className="mt-4 w-full bg-gray-100 rounded-full h-2">
                     <div className="bg-green-500 h-2 rounded-full animate-pulse"></div>
@@ -390,6 +378,53 @@ export default function HostelCard({ hostel }) {
                   </button>
                 </>
               )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* 🔐 Modern Login Modal */}
+      <AnimatePresence>
+        {authPrompt && (
+          <motion.div
+            className="fixed inset-0 z-[60] bg-black/40 backdrop-blur-sm flex items-center justify-center p-4"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          >
+            <motion.div
+              className="bg-white rounded-2xl max-w-sm w-full p-6 text-center shadow-2xl border border-gray-100"
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+            >
+              <LogIn
+                className="text-[#142B6F] w-12 h-12 mx-auto mb-3"
+                strokeWidth={1.5}
+              />
+              <h2 className="text-xl font-bold text-[#142B6F] mb-2">
+                Login Required
+              </h2>
+              <p className="text-gray-600 text-sm mb-5">
+                You need to log in or create an account before booking a hostel.
+              </p>
+              <div className="flex flex-col sm:flex-row gap-3">
+                <button
+                  onClick={() => {
+                    setAuthPrompt(false);
+                    router.push("/login");
+                  }}
+                  className="w-full bg-[#142B6F] text-white font-semibold py-2 rounded-lg hover:bg-[#1A2D7A] transition-all"
+                >
+                  Log In / Sign Up
+                </button>
+                <button
+                  onClick={() => setAuthPrompt(false)}
+                  className="w-full border border-gray-300 text-gray-700 py-2 rounded-lg hover:bg-gray-100 transition-all"
+                >
+                  Cancel
+                </button>
+              </div>
             </motion.div>
           </motion.div>
         )}

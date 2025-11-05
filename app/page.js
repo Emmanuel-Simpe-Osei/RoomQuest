@@ -4,16 +4,16 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { motion } from "framer-motion";
 import HeroSection from "@/components/public/HeroSection";
+import Image from "next/image";
 import Link from "next/link";
 import { Home, ShieldCheck, Smartphone, Wallet } from "lucide-react";
 
-// 🎨 brand colors
+// 🎨 Brand colors
 const NAVY = "#142B6F";
 const GOLD = "#FFD601";
 
 export default function HomePage() {
-  const [rooms, setRooms] = useState([]);
-  const [hostels, setHostels] = useState([]);
+  const [listings, setListings] = useState([]);
   const [loading, setLoading] = useState(true);
 
   // 🔥 Fetch featured listings from Supabase
@@ -25,14 +25,21 @@ export default function HomePage() {
           supabase.from("rooms").select("*").limit(3),
           supabase.from("hostels").select("*").limit(3),
         ]);
-        setRooms(roomData || []);
-        setHostels(hostelData || []);
+
+        // Add type to know where it came from
+        const combined = [
+          ...(roomData || []).map((r) => ({ ...r, type: "room" })),
+          ...(hostelData || []).map((h) => ({ ...h, type: "hostel" })),
+        ];
+
+        setListings(combined);
       } catch (err) {
         console.error("❌ Error fetching listings:", err.message);
       } finally {
         setLoading(false);
       }
     };
+
     fetchFeatured();
   }, []);
 
@@ -58,52 +65,67 @@ export default function HomePage() {
           </p>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-            {[...rooms, ...hostels].map((item, index) => (
-              <motion.div
-                key={item.id || index}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: index * 0.1 }}
-                className="bg-white rounded-2xl shadow-lg overflow-hidden border border-gray-100 hover:shadow-2xl transition-all duration-300"
-              >
-                <img
-                  src={
-                    Array.isArray(item.images)
-                      ? item.images[0]
-                      : item.images
-                      ? JSON.parse(item.images)[0]
-                      : "https://via.placeholder.com/400x250"
-                  }
-                  alt={item.title}
-                  className="w-full h-48 object-cover"
-                />
-                <div className="p-5 space-y-3">
-                  <h3 className="text-lg font-semibold text-gray-900 line-clamp-1">
-                    {item.title}
-                  </h3>
-                  <p className="text-gray-600 text-sm line-clamp-2">
-                    {item.description || "No description available."}
-                  </p>
-                  <p className="text-[#142B6F] font-bold text-lg">
-                    ₵
-                    {item.price_per_semester
-                      ? item.price_per_semester.toLocaleString()
-                      : item.price?.toLocaleString() || "—"}
-                  </p>
-                  <Link
-                    href={
-                      item.hostel_type
-                        ? `/hostels/${item.id}`
-                        : `/rooms/${item.id}`
-                    }
-                    className="inline-block text-center w-full bg-[#142B6F] text-white font-semibold py-2 rounded-lg hover:bg-[#1a2d7a] transition-all"
-                  >
-                    View Details
-                  </Link>
-                </div>
-              </motion.div>
-            ))}
+            {listings.map((item, index) => {
+              // Safe image handling
+              let imageSrc = "https://via.placeholder.com/400x250";
+              if (Array.isArray(item.images)) {
+                imageSrc = item.images[0];
+              } else if (typeof item.images === "string") {
+                try {
+                  imageSrc = JSON.parse(item.images)[0];
+                } catch {
+                  imageSrc = item.images;
+                }
+              }
+
+              return (
+                <motion.div
+                  key={item.id || index}
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: index * 0.1 }}
+                  className="bg-white rounded-2xl shadow-lg overflow-hidden border border-gray-100 hover:shadow-2xl transition-all duration-300"
+                >
+                  {/* 🖼 Image */}
+                  <div className="relative w-full h-48">
+                    <Image
+                      src={imageSrc || "https://via.placeholder.com/400x250"}
+                      alt={item.title || "Listing image"}
+                      fill
+                      sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                      className="object-cover"
+                      priority={index === 0}
+                      unoptimized={false}
+                    />
+                  </div>
+
+                  {/* 📝 Content */}
+                  <div className="p-5 space-y-3">
+                    <h3 className="text-lg font-semibold text-gray-900 line-clamp-1">
+                      {item.title}
+                    </h3>
+                    <p className="text-gray-600 text-sm line-clamp-2">
+                      {item.description || "No description available."}
+                    </p>
+                    <p className="text-[#142B6F] font-bold text-lg">
+                      ₵
+                      {item.price_per_semester
+                        ? item.price_per_semester.toLocaleString()
+                        : item.price?.toLocaleString() || "—"}
+                    </p>
+
+                    {/* 🧭 Button now routes to the list page */}
+                    <Link
+                      href={item.type === "hostel" ? "/hostels" : "/rooms"}
+                      className="inline-block text-center w-full bg-[#142B6F] text-white font-semibold py-2 rounded-lg hover:bg-[#1a2d7a] transition-all"
+                    >
+                      View More
+                    </Link>
+                  </div>
+                </motion.div>
+              );
+            })}
           </div>
         )}
       </section>

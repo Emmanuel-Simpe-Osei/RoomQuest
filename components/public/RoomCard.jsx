@@ -1,103 +1,146 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   MapPin,
-  Home,
-  Star,
   Calendar,
   X,
-  CheckCircle2,
   Loader2,
+  CheckCircle2,
+  LogIn,
+  Home,
+  Star,
 } from "lucide-react";
-import toast from "react-hot-toast";
 import { supabase } from "@/lib/supabaseClient";
-import { loadPaystack } from "@/lib/paystackLoader"; // ✅ Paystack loader util
+import { useRouter } from "next/navigation";
+import toast from "react-hot-toast";
 
-const GOLD = "#FFD601";
 const NAVY = "#142B6F";
+const GOLD = "#FFD601";
 
-// 🕓 Helper: how long ago
-function timeAgo(dateStr) {
-  if (!dateStr) return "";
-  const diff = Date.now() - new Date(dateStr).getTime();
-  const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-  const hrs = Math.floor(diff / (1000 * 60 * 60));
-  const mins = Math.floor(diff / (1000 * 60));
-  if (days > 0) return `${days} day${days > 1 ? "s" : ""} ago`;
-  if (hrs > 0) return `${hrs} hr${hrs > 1 ? "s" : ""} ago`;
-  if (mins > 0) return `${mins} min ago`;
-  return "Just now";
+/* -----------------------------------------------------
+   ✅ Safe Paystack Loader (same as hostel)
+------------------------------------------------------ */
+async function loadPaystack() {
+  return new Promise((resolve, reject) => {
+    if (typeof window === "undefined") return reject("Window unavailable");
+    if (window.PaystackPop && typeof window.PaystackPop.setup === "function")
+      return resolve(window.PaystackPop);
+
+    const script = document.createElement("script");
+    script.src = "https://js.paystack.co/v1/inline.js";
+    script.async = true;
+    script.onload = () => {
+      if (window.PaystackPop && typeof window.PaystackPop.setup === "function")
+        resolve(window.PaystackPop);
+      else reject("Paystack failed to initialize");
+    };
+    script.onerror = () => reject("Paystack script failed to load");
+    document.body.appendChild(script);
+  });
 }
 
+/* -----------------------------------------------------
+   🏠 RoomCard Component
+------------------------------------------------------ */
 export default function RoomCard({ room, onOpenGallery }) {
-  const [showModal, setShowModal] = useState(false);
+  const router = useRouter();
+  const [showBookingModal, setShowBookingModal] = useState(false);
+  const [authPrompt, setAuthPrompt] = useState(false);
+  const [userWhatsApp, setUserWhatsApp] = useState("");
   const [paying, setPaying] = useState(false);
   const [paymentSuccess, setPaymentSuccess] = useState(false);
-  const [userWhatsApp, setUserWhatsApp] = useState("");
 
   const occupied = room.availability === "Occupied";
   const booked = room.availability === "Booked";
 
-  const handleBookNow = () => setShowModal(true);
+  const parsedImages = Array.isArray(room?.images)
+    ? room.images
+    : room?.images
+    ? JSON.parse(room.images)
+    : [];
 
-  // ✅ PAYSTACK HANDLER
+  useEffect(() => {
+    if (paymentSuccess && showBookingModal) {
+      const t = setTimeout(() => {
+        setShowBookingModal(false);
+        setPaymentSuccess(false);
+        setPaying(false);
+        router.push("/dashboard/user/bookings");
+      }, 2000);
+      return () => clearTimeout(t);
+    }
+  }, [paymentSuccess, showBookingModal, router]);
+
+  /* -----------------------------------------------------
+     💾 Handle Success Saving to Supabase
+  ------------------------------------------------------ */
+  const handlePaymentSuccess = async (response, user) => {
+    try {
+      const { error } = await supabase.from("bookings").insert([
+        {
+          user_id: user.id,
+          room_id: room.id,
+          whatsapp: userWhatsApp,
+          status: "paid",
+          reference: response.reference,
+          created_at: new Date().toISOString(),
+        },
+      ]);
+
+      if (error) {
+        console.error("Booking save error:", error.message);
+        toast.error("Payment successful but booking save failed.");
+        setPaying(false);
+        return;
+      }
+      setPaymentSuccess(true);
+      toast.success("Payment successful! Redirecting...");
+    } catch (err) {
+      console.error("Post-payment error:", err);
+      toast.error("Payment saved with issues. Redirecting soon...");
+      setPaymentSuccess(true);
+    }
+  };
+
+  /* -----------------------------------------------------
+     💳 Handle Paystack Payment (copied hostel logic)
+  ------------------------------------------------------ */
   const handlePayment = async () => {
     if (!room?.booking_price)
       return toast.error("No booking fee for this room.");
-    if (!userWhatsApp.trim()) return toast.error("Enter your WhatsApp number.");
-    setPaying(true);
+    if (!userWhatsApp.trim())
+      return toast.error("Please enter your WhatsApp number.");
 
+    setPaying(true);
     const {
       data: { user },
       error: userError,
     } = await supabase.auth.getUser();
 
     if (userError || !user) {
-      toast.error("Please log in first.");
+      setAuthPrompt(true);
       setPaying(false);
       return;
     }
 
     try {
       const PaystackPop = await loadPaystack();
-
       const handler = PaystackPop.setup({
         key: process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY,
         email: user.email || "booking@roomquest.com",
         amount: room.booking_price * 100,
         currency: "GHS",
-        reference: `RQ-${Date.now()}`,
-        callback: async (response) => {
-          toast.success("Payment successful!");
-          setPaymentSuccess(true);
-
-          const { error } = await supabase.from("bookings").insert([
-            {
-              user_id: user.id,
-              room_id: room.id,
-              whatsapp: userWhatsApp,
-              status: "paid",
-              reference: response.reference,
-              created_at: new Date().toISOString(),
-            },
-          ]);
-
-          if (error) {
-            console.error("Booking save error:", error.message);
-            toast.error("Could not save booking.");
-          } else {
-            console.log("✅ Booking saved successfully!");
-          }
-
-          setTimeout(() => {
-            window.location.href = "/dashboard/user/bookings";
-          }, 2500);
-        },
+        reference: `RQ-ROOM-${Date.now()}-${Math.random()
+          .toString(36)
+          .substr(2, 9)}`,
+        callback: (response) => handlePaymentSuccess(response, user),
         onClose: () => {
-          toast("Payment window closed.");
-          setPaying(false);
+          if (!paymentSuccess) {
+            toast("Payment window closed.");
+            setPaying(false);
+          }
         },
         metadata: {
           custom_fields: [
@@ -107,8 +150,8 @@ export default function RoomCard({ room, onOpenGallery }) {
               value: userWhatsApp,
             },
             {
-              display_name: "Room Title",
-              variable_name: "room_title",
+              display_name: "Room Name",
+              variable_name: "room_name",
               value: room.title,
             },
           ],
@@ -117,192 +160,179 @@ export default function RoomCard({ room, onOpenGallery }) {
 
       if (!handler || typeof handler.openIframe !== "function")
         throw new Error("Paystack handler not ready yet.");
-
       handler.openIframe();
     } catch (err) {
       console.error("Paystack error:", err);
-      toast.error("Payment could not start. Please try again.");
-    } finally {
+      toast.error("Payment could not start. Try again.");
       setPaying(false);
     }
   };
 
-  // ✅ Safe image parser (works with JSON or array)
-  const parsedImages = (() => {
-    if (Array.isArray(room.images)) return room.images;
-    if (typeof room.images === "string") {
-      try {
-        return JSON.parse(room.images);
-      } catch {
-        return [room.images];
-      }
+  const closeBookingModal = () => {
+    if (!paying && !paymentSuccess) {
+      setShowBookingModal(false);
+      setUserWhatsApp("");
+      setPaying(false);
+      setPaymentSuccess(false);
     }
-    return [];
-  })();
-
-  const handleImageClick = () => {
-    if (!occupied) onOpenGallery?.(parsedImages, 0);
   };
 
+  const handleBookNow = async () => {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) return setAuthPrompt(true);
+    setShowBookingModal(true);
+  };
+
+  /* -----------------------------------------------------
+     🖼️ Render
+  ------------------------------------------------------ */
   return (
     <>
       {/* 🏠 Room Card */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        whileHover={{
-          y: -4,
-          transition: { type: "spring", stiffness: 400, damping: 25 },
-        }}
-        className={`relative bg-white rounded-2xl overflow-hidden shadow-lg border border-gray-100 transition-all duration-300 ${
-          occupied ? "opacity-60 grayscale" : booked ? "opacity-80" : ""
-        }`}
+        whileHover={{ y: -3 }}
+        transition={{ type: "spring", stiffness: 200, damping: 25 }}
+        className="relative bg-white rounded-2xl overflow-hidden shadow-md hover:shadow-xl transition-all duration-300 border border-gray-100"
       >
-        {/* Status badges */}
-        {(occupied || booked) && (
-          <div className="absolute top-3 left-3 z-10">
-            <span
-              className={`px-3 py-1.5 rounded-full text-xs font-semibold ${
-                occupied ? "bg-red-500 text-white" : "bg-yellow-500 text-white"
-              }`}
-            >
-              {occupied ? "🚫 Occupied" : "📅 Booked"}
-            </span>
-          </div>
-        )}
-
-        {room.verified && (
-          <div className="absolute top-3 right-3 z-10">
-            <span className="flex items-center gap-1 bg-[#FFD601]/20 text-[#142B6F] px-3 py-1.5 rounded-full text-xs font-semibold border border-[#FFD601]/30">
-              <Star size={12} fill="#FFD601" />
-              Verified
-            </span>
-          </div>
-        )}
-
-        {/* Image */}
-        <motion.div
-          className={`relative h-48 ${
-            occupied ? "cursor-not-allowed" : "cursor-pointer"
+        <div
+          className={`relative h-56 ${
+            occupied
+              ? "cursor-not-allowed grayscale opacity-60"
+              : "cursor-pointer"
           }`}
-          onClick={handleImageClick}
+          onClick={() => !occupied && onOpenGallery?.(parsedImages, 0)}
         >
           {parsedImages.length > 0 ? (
             <img
               src={parsedImages[0]}
               alt={room.title}
-              className="w-full h-full object-cover"
+              className="w-full h-full object-cover hover:scale-105 transition-transform duration-500"
             />
           ) : (
-            <div className="w-full h-full flex flex-col items-center justify-center text-gray-400 bg-gray-50">
-              <Home size={32} className="mb-2" />
-              <span className="text-sm">No images</span>
+            <div className="w-full h-full flex items-center justify-center bg-gray-50 text-gray-400">
+              <Home size={24} className="mr-1" /> No image
             </div>
           )}
-        </motion.div>
+          {room.verified && (
+            <div className="absolute top-3 right-3 bg-yellow-100 text-[#142B6F] text-xs font-semibold px-3 py-1 rounded-full border border-[#FFD601]/40 shadow-sm">
+              ⭐ Verified
+            </div>
+          )}
+        </div>
 
-        {/* Content */}
-        <div className="p-5 space-y-3">
-          <h3 className="text-lg font-bold text-[#142B6F] line-clamp-2">
+        <div className="p-5">
+          <h3 className="text-lg font-bold text-gray-900 line-clamp-1">
             {room.title}
           </h3>
-
-          <div className="flex items-center gap-2 text-gray-600 text-sm">
+          <div className="flex items-center gap-2 text-gray-600 text-sm mt-1">
             <MapPin size={15} />
             <span>{room.location}</span>
           </div>
 
-          {/* ✅ Description (now visible) */}
+          <div className="flex items-center justify-between mt-3">
+            <span className="text-sm font-medium text-[#142B6F] bg-[#E9EEFF] px-3 py-1 rounded-full">
+              {room.type || "Room"}
+            </span>
+            <div className="flex items-center gap-1 text-gray-500 text-xs">
+              <Calendar size={13} />
+              <span>
+                {new Date(room.created_at).toLocaleDateString("en-US")}
+              </span>
+            </div>
+          </div>
+
           {room.description && (
-            <p className="text-gray-700 text-sm line-clamp-3">
+            <p className="text-gray-600 text-sm mt-3 line-clamp-2">
               {room.description}
             </p>
           )}
 
-          <div className="flex justify-between items-center">
-            <span className="text-sm font-medium bg-blue-50 text-blue-700 px-3 py-1 rounded-full border border-blue-200">
-              {room.type}
-            </span>
-            <div className="flex items-center gap-1 text-gray-500 text-xs">
-              <Calendar size={12} />
-              {timeAgo(room.created_at)}
-            </div>
-          </div>
-
-          <div className="pt-3 border-t border-gray-100 space-y-3">
-            <div className="flex justify-between items-center">
-              <p className="text-xl font-bold text-[#142B6F]">₵{room.price}</p>
-              <p className="text-xs text-gray-500">per month</p>
+          <div className="mt-4 border-t border-gray-100 pt-3">
+            <div className="flex items-center justify-between">
+              <p className="text-lg font-semibold text-gray-900">
+                ₵{room.price?.toLocaleString() || "—"}
+                <span className="text-gray-500 text-sm ml-1">per month</span>
+              </p>
+              <span className="text-xs font-medium bg-yellow-100 text-yellow-700 px-3 py-1 rounded-full">
+                10% agent fee
+              </span>
             </div>
 
-            {room.booking_price && (
-              <div className="bg-green-50 border border-green-200 rounded-lg p-3 text-sm flex justify-between">
-                <span className="text-green-700 font-medium">Booking Fee</span>
-                <span className="text-green-800 font-bold">
-                  ₵{room.booking_price}
-                </span>
-              </div>
-            )}
+            <div className="mt-2 bg-green-50 text-green-700 px-3 py-1 rounded-lg text-sm font-medium">
+              Booking Fee: ₵{room.booking_price || 197}
+            </div>
 
-            {!occupied && (
-              <motion.button
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                onClick={handleBookNow}
-                className="w-full py-3 rounded-xl font-semibold shadow-md bg-[#142B6F] text-white hover:bg-[#1A2D7A]"
-              >
-                Book Now
-              </motion.button>
-            )}
+            <button
+              onClick={handleBookNow}
+              disabled={occupied}
+              className={`mt-4 block text-center w-full text-white text-sm font-semibold py-2 rounded-lg transition-all ${
+                occupied
+                  ? "bg-gray-400 cursor-not-allowed"
+                  : "bg-[#142B6F] hover:bg-[#1A2D7A]"
+              }`}
+            >
+              Book Now
+            </button>
           </div>
         </div>
       </motion.div>
 
       {/* 💳 Booking Modal */}
       <AnimatePresence>
-        {showModal && (
+        {showBookingModal && (
           <motion.div
-            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm px-4"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
           >
             <motion.div
-              className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 relative"
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
+              transition={{ duration: 0.3 }}
+              className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-lg relative text-center"
             >
-              <button
-                onClick={() => setShowModal(false)}
-                className="absolute top-4 right-4 text-gray-500 hover:text-gray-700"
-              >
-                <X size={22} />
-              </button>
+              {!paymentSuccess && (
+                <button
+                  onClick={closeBookingModal}
+                  className="absolute top-4 right-4 text-gray-400 hover:text-gray-600"
+                  disabled={paying}
+                >
+                  <X size={20} />
+                </button>
+              )}
 
               {paymentSuccess ? (
-                <div className="flex flex-col items-center justify-center py-6">
-                  <CheckCircle2 size={60} className="text-green-500 mb-3" />
-                  <h3 className="text-xl font-bold text-green-700">
+                <div className="py-6 flex flex-col items-center">
+                  <CheckCircle2 className="text-green-500 mb-3" size={60} />
+                  <h3 className="text-lg font-bold text-green-700">
                     Payment Successful!
                   </h3>
-                  <p className="text-gray-600 text-center mt-2">
-                    Your booking has been confirmed. Redirecting...
+                  <p className="text-gray-600 text-sm mt-2">
+                    Booking confirmed 🎉 Redirecting...
                   </p>
+                  <div className="mt-4 w-full bg-gray-100 rounded-full h-2">
+                    <div className="bg-green-500 h-2 rounded-full animate-pulse"></div>
+                  </div>
                 </div>
               ) : (
                 <>
-                  <h2 className="text-2xl font-bold mb-3 text-center text-[#142B6F]">
+                  <h2 className="text-xl font-bold text-[#142B6F] mb-2">
                     Confirm Booking
                   </h2>
-                  <p className="text-gray-600 text-center mb-5">
+                  <p className="text-gray-600 text-sm mb-4">
                     Pay a one-time{" "}
                     <span className="font-semibold text-[#142B6F]">
-                      Service & Agent Fee
+                      Service & Agent Viewing Fee
                     </span>{" "}
                     of{" "}
                     <span className="text-[#FFD601] font-bold">
-                      ₵{room.booking_price}
+                      ₵{room.booking_price || 197}
                     </span>
                     .
                   </p>
@@ -312,20 +342,21 @@ export default function RoomCard({ room, onOpenGallery }) {
                     placeholder="Enter your WhatsApp number"
                     value={userWhatsApp}
                     onChange={(e) => setUserWhatsApp(e.target.value)}
-                    className="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm mb-5 focus:outline-none focus:ring-2 focus:ring-[#FFD601]/60"
+                    className="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm mb-4 focus:ring-2 focus:ring-[#FFD601]/60 outline-none"
+                    disabled={paying}
                   />
 
                   <motion.button
                     whileHover={!paying ? { scale: 1.02 } : {}}
                     whileTap={!paying ? { scale: 0.98 } : {}}
-                    onClick={!paying ? handlePayment : undefined}
-                    disabled={paying}
-                    className="w-full flex justify-center items-center gap-2 bg-[#FFD601] text-[#142B6F] py-3 rounded-xl font-semibold hover:bg-[#ffde33] transition-all duration-200 shadow-lg hover:shadow-xl disabled:opacity-70"
+                    disabled={paying || !userWhatsApp.trim()}
+                    onClick={handlePayment}
+                    className="w-full bg-[#FFD601] text-[#142B6F] font-semibold py-3 rounded-lg hover:bg-[#ffdf3b] transition-all duration-200 flex justify-center items-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
                   >
                     {paying ? (
                       <>
-                        <Loader2 className="animate-spin w-5 h-5" />
-                        Processing Payment...
+                        <Loader2 className="animate-spin w-5 h-5" />{" "}
+                        Processing...
                       </>
                     ) : (
                       "Confirm & Pay"
@@ -333,13 +364,61 @@ export default function RoomCard({ room, onOpenGallery }) {
                   </motion.button>
 
                   <button
-                    onClick={() => setShowModal(false)}
-                    className="w-full text-gray-500 text-sm mt-3 hover:text-gray-700"
+                    onClick={closeBookingModal}
+                    disabled={paying}
+                    className="w-full mt-3 text-sm text-gray-500 hover:text-gray-700 disabled:opacity-50"
                   >
                     Cancel
                   </button>
                 </>
               )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* 🔐 Modern Login Modal */}
+      <AnimatePresence>
+        {authPrompt && (
+          <motion.div
+            className="fixed inset-0 z-[60] bg-black/40 backdrop-blur-sm flex items-center justify-center p-4"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          >
+            <motion.div
+              className="bg-white rounded-2xl max-w-sm w-full p-6 text-center shadow-2xl border border-gray-100"
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+            >
+              <LogIn
+                className="text-[#142B6F] w-12 h-12 mx-auto mb-3"
+                strokeWidth={1.5}
+              />
+              <h2 className="text-xl font-bold text-[#142B6F] mb-2">
+                Login Required
+              </h2>
+              <p className="text-gray-600 text-sm mb-5">
+                You need to log in or create an account before booking a room.
+              </p>
+              <div className="flex flex-col sm:flex-row gap-3">
+                <button
+                  onClick={() => {
+                    setAuthPrompt(false);
+                    router.push("/login");
+                  }}
+                  className="w-full bg-[#142B6F] text-white font-semibold py-2 rounded-lg hover:bg-[#1A2D7A] transition-all"
+                >
+                  Log In / Sign Up
+                </button>
+                <button
+                  onClick={() => setAuthPrompt(false)}
+                  className="w-full border border-gray-300 text-gray-700 py-2 rounded-lg hover:bg-gray-100 transition-all"
+                >
+                  Cancel
+                </button>
+              </div>
             </motion.div>
           </motion.div>
         )}

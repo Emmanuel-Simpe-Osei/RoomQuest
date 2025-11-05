@@ -11,7 +11,7 @@ import toast from "react-hot-toast";
 import { supabase } from "@/lib/supabaseClient";
 import { User, Mail, Lock, Phone, Eye, EyeOff } from "lucide-react";
 
-// ✅ Validation schema
+/* ✅ Validation Schema */
 const schema = z
   .object({
     fullName: z.string().min(3, "Please enter your full name"),
@@ -48,6 +48,7 @@ export default function SignUpPage() {
 
   useEffect(() => () => clearTimeout(slowTimer.current), []);
 
+  /* 🧠 SIGN UP HANDLER */
   const onSubmit = async (values) => {
     setLoading(true);
     setSlowNote("");
@@ -56,6 +57,7 @@ export default function SignUpPage() {
     }, 6000);
 
     try {
+      // 1️⃣ Create user account
       const { data, error } = await supabase.auth.signUp({
         email: values.email,
         password: values.password,
@@ -63,11 +65,11 @@ export default function SignUpPage() {
           data: {
             full_name: values.fullName,
             phone: values.phone,
+            role: "user",
           },
         },
       });
 
-      // ⚠️ Handle duplicate user gracefully
       if (error) {
         if (error.message.includes("User already registered")) {
           toast.error(
@@ -82,8 +84,8 @@ export default function SignUpPage() {
       const user = data?.user;
       if (!user) throw new Error("Signup failed — user not returned.");
 
-      // ✅ Create or update profile (no duplicate key)
-      await supabase.from("profiles").upsert([
+      // 2️⃣ Insert profile (guaranteed)
+      const { error: profileError } = await supabase.from("profiles").upsert([
         {
           id: user.id,
           email: values.email,
@@ -94,19 +96,28 @@ export default function SignUpPage() {
         },
       ]);
 
-      // 🚀 Instant redirect — don’t wait for session sync
+      if (profileError) console.warn("Profile insert issue:", profileError);
+
+      // 3️⃣ Get updated profile (for role-based routing)
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("role")
+        .eq("id", user.id)
+        .single();
+
+      // 4️⃣ Redirect based on actual role
       toast.success("Account created successfully!");
       setTimeout(() => {
-        const isAdmin = values.email.toLowerCase().includes("admin");
-        router.replace(isAdmin ? "/dashboard/admin" : "/rooms");
+        if (profile?.role === "admin") {
+          router.replace("/dashboard/admin");
+        } else {
+          router.replace("/dashboard/user");
+        }
       }, 1200);
     } catch (err) {
       console.error(err);
-      const msg = err?.message?.includes("already")
-        ? "That email is already registered."
-        : err?.message || "Could not create account. Try again.";
-      toast.error(msg);
-      setError("email", { type: "manual", message: msg });
+      toast.error(err?.message || "Could not create account. Try again.");
+      setError("email", { type: "manual", message: err?.message });
     } finally {
       clearTimeout(slowTimer.current);
       setSlowNote("");
@@ -114,9 +125,10 @@ export default function SignUpPage() {
     }
   };
 
+  /* ✨ UI SECTION */
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#142B6F] via-[#1A3A8E] to-[#0D1F5A] px-4 relative overflow-hidden">
-      {/* Floating background orbs */}
+      {/* Floating background lights */}
       <motion.div
         className="absolute top-10 left-10 w-20 h-20 bg-[#FFD601]/10 rounded-full blur-xl"
         animate={{ y: [0, -20, 0], scale: [1, 1.1, 1] }}
@@ -133,6 +145,7 @@ export default function SignUpPage() {
         }}
       />
 
+      {/* Form Card */}
       <motion.div
         className="w-full max-w-md bg-white/95 backdrop-blur-xl shadow-2xl rounded-2xl p-8 border border-white/20 relative z-10"
         initial={{ opacity: 0, y: 30, scale: 0.95 }}
