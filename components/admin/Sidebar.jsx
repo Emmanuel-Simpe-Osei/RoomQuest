@@ -1,23 +1,30 @@
 "use client";
+
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Home, Bed, Building2, Users, Calendar, LogOut, X } from "lucide-react";
+import {
+  Home,
+  Bed,
+  Building2,
+  Users,
+  Calendar,
+  LogOut,
+  X,
+  Settings,
+} from "lucide-react";
 import Link from "next/link";
+import { supabase } from "@/lib/supabaseClient";
+import { useRouter } from "next/navigation";
 
 export default function Sidebar() {
   const [isOpen, setIsOpen] = useState(false);
+  const router = useRouter();
 
-  // 🧠 Toggle sidebar from Topbar
-  useEffect(() => {
-    const handleToggle = () => setIsOpen((prev) => !prev);
-    window.addEventListener("toggle-sidebar", handleToggle);
-    return () => window.removeEventListener("toggle-sidebar", handleToggle);
-  }, []);
-
-  // 🧩 Prevent body scroll when sidebar is open (mobile)
-  useEffect(() => {
-    document.body.style.overflow = isOpen ? "hidden" : "";
-  }, [isOpen]);
+  // ✅ Logout action
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    router.replace("/"); // back to public homepage
+  };
 
   const links = [
     { name: "Dashboard", href: "/dashboard/admin", icon: Home },
@@ -25,13 +32,26 @@ export default function Sidebar() {
     { name: "Hostels", href: "/dashboard/admin/hostels", icon: Building2 },
     { name: "Users", href: "/dashboard/admin/users", icon: Users },
     { name: "Bookings", href: "/dashboard/admin/bookings", icon: Calendar },
+    { name: "Settings", href: "/dashboard/admin/settings", icon: Settings },
   ];
+
+  // Sidebar toggle listener (mobile)
+  useEffect(() => {
+    const handleToggle = () => setIsOpen((prev) => !prev);
+    window.addEventListener("toggle-sidebar", handleToggle);
+    return () => window.removeEventListener("toggle-sidebar", handleToggle);
+  }, []);
+
+  // Disable body scroll when open (mobile)
+  useEffect(() => {
+    document.body.style.overflow = isOpen ? "hidden" : "";
+  }, [isOpen]);
 
   return (
     <>
       {/* 🟡 Desktop Sidebar */}
       <aside className="hidden md:flex flex-col justify-between h-screen w-64 bg-[#142B6F] text-white shadow-lg">
-        {/* Header */}
+        {/* Logo */}
         <div>
           <div className="flex items-center justify-between px-6 py-5 border-b border-[#FFD601]/20">
             <h1 className="text-xl font-bold">
@@ -40,7 +60,7 @@ export default function Sidebar() {
             </h1>
           </div>
 
-          {/* Navigation Links */}
+          {/* Navigation */}
           <nav className="px-4 py-4 space-y-2">
             {links.map(({ name, href, icon: Icon }) => (
               <Link
@@ -55,16 +75,29 @@ export default function Sidebar() {
           </nav>
         </div>
 
-        {/* Logout Button (pinned bottom) */}
-        <div className="p-4 border-t border-[#FFD601]/20">
-          <button className="w-full bg-[#FFD601] text-[#142B6F] font-semibold py-2 rounded-lg flex items-center justify-center space-x-2 hover:opacity-90 transition">
+        {/* ✅ Go to Homepage + Logout */}
+        <div className="p-4 border-t border-[#FFD601]/20 space-y-3">
+          {/* ✅ Go to Homepage */}
+          <button
+            onClick={() => router.push("/")}
+            className="w-full bg-white/10 text-white border border-white/20 font-semibold py-2 rounded-lg flex items-center justify-center space-x-2 hover:bg-white/20 transition"
+          >
+            <Home size={18} />
+            <span>Go to Homepage</span>
+          </button>
+
+          {/* ✅ Logout */}
+          <button
+            onClick={handleLogout}
+            className="w-full bg-[#FFD601] text-[#142B6F] font-semibold py-2 rounded-lg flex items-center justify-center space-x-2 hover:opacity-90 transition"
+          >
             <LogOut size={18} />
             <span>Logout</span>
           </button>
         </div>
       </aside>
 
-      {/* 🟣 Mobile Sidebar (controlled by Topbar) */}
+      {/* 🟣 Mobile Sidebar */}
       <AnimatePresence>
         {isOpen && (
           <>
@@ -77,47 +110,62 @@ export default function Sidebar() {
               onClick={() => setIsOpen(false)}
             />
 
-            {/* Drawer Sidebar */}
+            {/* Drawer */}
             <motion.aside
               initial={{ x: "-100%" }}
               animate={{ x: 0 }}
               exit={{ x: "-100%" }}
-              transition={{ type: "tween", duration: 0.3 }}
-              className="fixed top-0 left-0 h-full w-64 bg-[#142B6F] z-50 flex flex-col justify-between shadow-2xl"
+              transition={{ duration: 0.25 }}
+              className="fixed top-0 left-0 h-full w-64 bg-[#142B6F] z-50 flex flex-col justify-between shadow-xl"
             >
-              {/* Header */}
-              <div className="flex items-center justify-between px-6 py-5 border-b border-[#FFD601]/20">
-                <h1 className="text-xl font-bold">
-                  <span className="text-white">Room</span>
-                  <span className="text-[#FFD601]">Quest</span>
-                </h1>
-                <button
-                  onClick={() => setIsOpen(false)}
-                  className="text-[#FFD601] hover:opacity-80 transition"
-                >
-                  <X size={24} />
-                </button>
+              <div>
+                {/* Header */}
+                <div className="flex items-center justify-between px-6 py-5 border-b border-[#FFD601]/20">
+                  <h1 className="text-xl font-bold">
+                    <span className="text-white">Room</span>
+                    <span className="text-[#FFD601]">Quest</span>
+                  </h1>
+                  <button
+                    onClick={() => setIsOpen(false)}
+                    className="text-[#FFD601]"
+                  >
+                    <X size={24} />
+                  </button>
+                </div>
+
+                {/* Links */}
+                <nav className="flex-1 px-4 py-4 space-y-2 overflow-y-auto">
+                  {links.map(({ name, href, icon: Icon }) => (
+                    <Link
+                      key={name}
+                      href={href}
+                      onClick={() => setIsOpen(false)}
+                      className="flex items-center space-x-3 text-white/90 hover:bg-[#FFD601] hover:text-[#142B6F] px-3 py-2 rounded-lg transition"
+                    >
+                      <Icon size={18} />
+                      <span>{name}</span>
+                    </Link>
+                  ))}
+                </nav>
               </div>
 
-              {/* Navigation Links */}
-              <nav className="flex-1 px-4 py-4 space-y-2 overflow-y-auto">
-                {links.map(({ name, href, icon: Icon }) => (
-                  <Link
-                    key={name}
-                    href={href}
-                    onClick={() => setIsOpen(false)}
-                    className="flex items-center space-x-3 text-white/90 hover:bg-[#FFD601] hover:text-[#142B6F] px-3 py-2 rounded-lg transition"
-                  >
-                    <Icon size={18} />
-                    <span>{name}</span>
-                  </Link>
-                ))}
-              </nav>
-
-              {/* Logout */}
-              <div className="p-4 border-t border-[#FFD601]/20">
+              {/* ✅ Mobile Footer */}
+              <div className="p-4 border-t border-[#FFD601]/20 space-y-3">
+                {/* Go Home */}
                 <button
-                  onClick={() => setIsOpen(false)}
+                  onClick={() => {
+                    setIsOpen(false);
+                    router.push("/");
+                  }}
+                  className="w-full bg-white/10 text-white border border-white/20 font-semibold py-2 rounded-lg flex items-center justify-center space-x-2 hover:bg-white/20 transition"
+                >
+                  <Home size={18} />
+                  <span>Go to Homepage</span>
+                </button>
+
+                {/* Logout */}
+                <button
+                  onClick={handleLogout}
                   className="w-full bg-[#FFD601] text-[#142B6F] font-semibold py-2 rounded-lg flex items-center justify-center space-x-2 hover:opacity-90 transition"
                 >
                   <LogOut size={18} />

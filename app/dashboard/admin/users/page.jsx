@@ -3,15 +3,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { motion } from "framer-motion";
-import {
-  User2,
-  Mail,
-  Phone,
-  Shield,
-  Loader2,
-  Calendar,
-  Users,
-} from "lucide-react";
+import { User2, Mail, Phone, Loader2, Calendar, Users } from "lucide-react";
 
 const NAVY = "#142B6F";
 const DARK_NAVY = "#0E1F52";
@@ -21,26 +13,49 @@ export default function AdminUsersPage() {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // ✅ Fetch users from Supabase profiles table
   useEffect(() => {
     const fetchUsers = async () => {
-      try {
-        const { data, error } = await supabase
-          .from("profiles")
-          .select("id, full_name, email, phone, role, created_at")
-          .order("created_at", { ascending: false });
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("id, full_name, email, phone, role, created_at")
+        .order("created_at", { ascending: false });
 
-        if (error) throw error;
-        setUsers(data || []);
-      } catch (err) {
-        console.error("Error fetching users:", err);
-      } finally {
-        setLoading(false);
-      }
+      if (!error && data) setUsers(data);
+      setLoading(false);
     };
 
     fetchUsers();
   }, []);
+
+  // ✅ Delete User API call
+  const deleteUser = async (id) => {
+    try {
+      await fetch("/api/admin/delete-user", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ user_id: id }),
+      });
+      setUsers((prev) => prev.filter((u) => u.id !== id));
+    } catch (err) {
+      console.error("Deletion failed:", err);
+    }
+  };
+
+  // ✅ Promote
+  const promote = async (id) => {
+    await supabase.from("profiles").update({ role: "admin" }).eq("id", id);
+    setUsers((prev) =>
+      prev.map((u) => (u.id === id ? { ...u, role: "admin" } : u))
+    );
+  };
+
+  // ✅ Demote
+  const demote = async (id) => {
+    await supabase.from("profiles").update({ role: "user" }).eq("id", id);
+    setUsers((prev) =>
+      prev.map((u) => (u.id === id ? { ...u, role: "user" } : u))
+    );
+  };
 
   if (loading)
     return (
@@ -81,81 +96,89 @@ export default function AdminUsersPage() {
         </motion.div>
       </div>
 
-      {/* Table Section */}
+      {/* ✅ NEW CARD VIEW */}
       {users.length === 0 ? (
         <div className="text-center text-gray-300 py-20 text-lg">
           No registered users found.
         </div>
       ) : (
-        <div className="overflow-x-auto bg-[#132863]/80 backdrop-blur-sm shadow-xl rounded-2xl border border-[#FFD601]/20">
-          <table className="min-w-full text-sm text-gray-100">
-            <thead className="bg-[#FFD601]/10 text-[#FFD601] uppercase text-xs border-b border-[#FFD601]/30">
-              <tr>
-                <th className="py-3 px-4 text-left">User</th>
-                <th className="py-3 px-4 text-left">Email</th>
-                <th className="py-3 px-4 text-left">Phone</th>
-                <th className="py-3 px-4 text-center">Role</th>
-                <th className="py-3 px-4 text-center">Joined</th>
-              </tr>
-            </thead>
-            <tbody>
-              {users.map((u, i) => (
-                <motion.tr
-                  key={u.id}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: i * 0.04 }}
-                  className="border-b border-[#FFD601]/10 hover:bg-[#1A2D7A]/50 transition-all"
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          {users.map((u, i) => (
+            <motion.div
+              key={u.id}
+              initial={{ opacity: 0, y: 15 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: i * 0.04 }}
+              className="bg-[#132863]/80 backdrop-blur-md border border-[#FFD601]/30 rounded-2xl shadow-lg p-5 hover:shadow-[#FFD601]/30 hover:-translate-y-1 transition-all"
+            >
+              {/* Avatar */}
+              <div className="flex justify-center mb-4">
+                <div className="w-14 h-14 rounded-full bg-[#FFD601]/20 border border-[#FFD601]/40 flex items-center justify-center">
+                  <User2 size={26} className="text-[#FFD601]" />
+                </div>
+              </div>
+
+              {/* Name */}
+              <h2 className="text-lg font-semibold text-center text-white">
+                {u.full_name || "Unnamed User"}
+              </h2>
+
+              {/* Email */}
+              <p className="text-xs text-gray-300 text-center mt-1 flex justify-center items-center gap-1">
+                <Mail size={12} className="text-[#FFD601]" /> {u.email || "—"}
+              </p>
+
+              {/* Phone */}
+              <p className="text-xs text-gray-300 text-center mt-1 flex justify-center items-center gap-1">
+                <Phone size={12} className="text-[#FFD601]" /> {u.phone || "—"}
+              </p>
+
+              {/* Role Badge */}
+              <div className="mt-4 flex justify-center">
+                <span
+                  className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                    u.role === "admin"
+                      ? "bg-green-500/20 text-green-400"
+                      : "bg-[#FFD601]/20 text-[#FFD601]"
+                  }`}
                 >
-                  {/* Name */}
-                  <td className="py-4 px-4 flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-[#FFD601]/20 border border-[#FFD601]/40 flex items-center justify-center">
-                      <User2 size={18} className="text-[#FFD601]" />
-                    </div>
-                    <div>
-                      <p className="font-semibold text-white">
-                        {u.full_name || "Unnamed User"}
-                      </p>
-                      <p className="text-gray-400 text-xs flex items-center gap-1">
-                        <Shield size={11} /> ID: {u.id.slice(0, 8)}...
-                      </p>
-                    </div>
-                  </td>
+                  {u.role}
+                </span>
+              </div>
 
-                  {/* Email */}
-                  <td className="py-4 px-4 text-gray-300 flex items-center gap-2">
-                    <Mail size={13} className="text-[#FFD601]" />
-                    {u.email || "—"}
-                  </td>
+              {/* ✅ Action Buttons */}
+              <div className="mt-5 flex justify-center gap-2 flex-wrap">
+                {u.role === "admin" ? (
+                  <button
+                    onClick={() => demote(u.id)}
+                    className="px-3 py-1 text-sm rounded-md bg-[#FFD601] text-black font-semibold"
+                  >
+                    Demote
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => promote(u.id)}
+                    className="px-3 py-1 text-sm rounded-md bg-green-500 text-white font-semibold"
+                  >
+                    Promote
+                  </button>
+                )}
 
-                  {/* Phone */}
-                  <td className="py-4 px-4 text-gray-300 flex items-center gap-2">
-                    <Phone size={13} className="text-[#FFD601]" />
-                    {u.phone || "—"}
-                  </td>
+                <button
+                  onClick={() => deleteUser(u.id)}
+                  className="px-3 py-1 text-sm rounded-md bg-red-500 text-white font-semibold"
+                >
+                  Delete
+                </button>
+              </div>
 
-                  {/* Role */}
-                  <td className="py-4 px-4 text-center">
-                    <span
-                      className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                        u.role === "admin"
-                          ? "bg-green-500/20 text-green-400"
-                          : "bg-[#FFD601]/20 text-[#FFD601]"
-                      }`}
-                    >
-                      {u.role || "user"}
-                    </span>
-                  </td>
-
-                  {/* Date */}
-                  <td className="py-4 px-4 text-center text-gray-400 flex items-center justify-center gap-1">
-                    <Calendar size={12} />
-                    {new Date(u.created_at).toLocaleDateString()}
-                  </td>
-                </motion.tr>
-              ))}
-            </tbody>
-          </table>
+              {/* Joined Date */}
+              <p className="text-center text-gray-400 text-xs mt-3 flex justify-center items-center gap-1">
+                <Calendar size={12} />{" "}
+                {new Date(u.created_at).toLocaleDateString()}
+              </p>
+            </motion.div>
+          ))}
         </div>
       )}
     </div>
