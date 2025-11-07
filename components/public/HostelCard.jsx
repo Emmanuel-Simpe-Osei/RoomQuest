@@ -15,9 +15,6 @@ import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 import GalleryModal from "@/components/public/GalleryModal";
 
-const NAVY = "#142B6F";
-const GOLD = "#FFD601";
-
 /* -----------------------------------------------------
    ✅ Safe Paystack Loader
 ------------------------------------------------------ */
@@ -48,10 +45,11 @@ export default function HostelCard({ hostel }) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [currentImage, setCurrentImage] = useState(0);
   const [showBookingModal, setShowBookingModal] = useState(false);
-  const [authPrompt, setAuthPrompt] = useState(false); // ✅ new
+  const [authPrompt, setAuthPrompt] = useState(false);
   const [userWhatsApp, setUserWhatsApp] = useState("");
   const [paying, setPaying] = useState(false);
   const [paymentSuccess, setPaymentSuccess] = useState(false);
+  const [agentPercentage, setAgentPercentage] = useState(null);
 
   const images = Array.isArray(hostel?.images)
     ? hostel.images
@@ -62,6 +60,34 @@ export default function HostelCard({ hostel }) {
   const nextImage = () => setCurrentImage((p) => (p + 1) % images.length);
   const prevImage = () =>
     setCurrentImage((p) => (p - 1 + images.length) % images.length);
+
+  // Fetch agent percentage from database
+  useEffect(() => {
+    const fetchAgentPercentage = async () => {
+      try {
+        const { data, error } = await supabase
+          .from("hostels")
+          .select("agent_fee_percentage")
+          .eq("id", hostel.id)
+          .single();
+
+        if (error) {
+          console.error("Error fetching agent percentage:", error);
+          return;
+        }
+
+        if (data) {
+          setAgentPercentage(data.agent_fee_percentage);
+        }
+      } catch (err) {
+        console.error("Failed to fetch agent percentage:", err);
+      }
+    };
+
+    if (hostel?.id) {
+      fetchAgentPercentage();
+    }
+  }, [hostel?.id]);
 
   useEffect(() => {
     if (paymentSuccess && showBookingModal) {
@@ -117,7 +143,6 @@ export default function HostelCard({ hostel }) {
       error: userError,
     } = await supabase.auth.getUser();
 
-    // ✅ Auth check before pay
     if (userError || !user) {
       setAuthPrompt(true);
       setPaying(false);
@@ -176,9 +201,6 @@ export default function HostelCard({ hostel }) {
     }
   };
 
-  /* -----------------------------------------------------
-     📦 Book Now with login check
-  ------------------------------------------------------ */
   const handleBookNow = async () => {
     const {
       data: { user },
@@ -192,7 +214,7 @@ export default function HostelCard({ hostel }) {
   };
 
   /* -----------------------------------------------------
-     🖼️ Render
+     🖼️ Render UI
   ------------------------------------------------------ */
   return (
     <>
@@ -220,7 +242,7 @@ export default function HostelCard({ hostel }) {
             </div>
           )}
           {hostel.verified && (
-            <div className="absolute top-3 right-3 bg-yellow-100 text-[#142B6F] text-xs font-semibold px-3 py-1 rounded-full border border-[#FFD601]/40 shadow-sm">
+            <div className="absolute top-3 right-3 bg-yellow-100 text-[#142B6F] text-xs font-semibold px-3 py-1 rounded-full border border-yellow-300 shadow-sm">
               ⭐ Verified
             </div>
           )}
@@ -257,9 +279,16 @@ export default function HostelCard({ hostel }) {
                 ₵{hostel.price_per_semester?.toLocaleString() || "—"}
                 <span className="text-gray-500 text-sm ml-1">per semester</span>
               </p>
-              <span className="text-xs font-medium bg-yellow-100 text-yellow-700 px-3 py-1 rounded-full">
-                10% agent fee
-              </span>
+
+              {agentPercentage ? (
+                <span className="text-xs font-medium bg-yellow-100 text-yellow-700 px-3 py-1 rounded-full">
+                  {agentPercentage}% agent fee
+                </span>
+              ) : (
+                <span className="text-xs font-medium bg-yellow-100 text-yellow-700 px-3 py-1 rounded-full">
+                  Agent fee applies
+                </span>
+              )}
             </div>
 
             <div className="mt-2 bg-green-50 text-green-700 px-3 py-1 rounded-lg text-sm font-medium">
@@ -322,9 +351,6 @@ export default function HostelCard({ hostel }) {
                   <p className="text-gray-600 text-sm mt-2">
                     Booking confirmed 🎉 Redirecting...
                   </p>
-                  <div className="mt-4 w-full bg-gray-100 rounded-full h-2">
-                    <div className="bg-green-500 h-2 rounded-full animate-pulse"></div>
-                  </div>
                 </div>
               ) : (
                 <>
@@ -332,15 +358,14 @@ export default function HostelCard({ hostel }) {
                     Confirm Booking
                   </h2>
                   <p className="text-gray-600 text-sm mb-4">
-                    Pay a one-time{" "}
+                    Pay{" "}
                     <span className="font-semibold text-[#142B6F]">
-                      Service & Agent Viewing Fee
+                      Viewing Fee
                     </span>{" "}
                     of{" "}
                     <span className="text-[#FFD601] font-bold">
                       ₵{hostel.booking_fee || 197}
                     </span>
-                    .
                   </p>
 
                   <input
@@ -383,7 +408,7 @@ export default function HostelCard({ hostel }) {
         )}
       </AnimatePresence>
 
-      {/* 🔐 Modern Login Modal */}
+      {/* 🔐 Login Prompt */}
       <AnimatePresence>
         {authPrompt && (
           <motion.div
@@ -398,33 +423,30 @@ export default function HostelCard({ hostel }) {
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
             >
-              <LogIn
-                className="text-[#142B6F] w-12 h-12 mx-auto mb-3"
-                strokeWidth={1.5}
-              />
+              <LogIn className="text-[#142B6F] w-12 h-12 mx-auto mb-3" />
               <h2 className="text-xl font-bold text-[#142B6F] mb-2">
                 Login Required
               </h2>
               <p className="text-gray-600 text-sm mb-5">
-                You need to log in or create an account before booking a hostel.
+                You need to log in or create an account before booking.
               </p>
-              <div className="flex flex-col sm:flex-row gap-3">
-                <button
-                  onClick={() => {
-                    setAuthPrompt(false);
-                    router.push("/login");
-                  }}
-                  className="w-full bg-[#142B6F] text-white font-semibold py-2 rounded-lg hover:bg-[#1A2D7A] transition-all"
-                >
-                  Log In / Sign Up
-                </button>
-                <button
-                  onClick={() => setAuthPrompt(false)}
-                  className="w-full border border-gray-300 text-gray-700 py-2 rounded-lg hover:bg-gray-100 transition-all"
-                >
-                  Cancel
-                </button>
-              </div>
+
+              <button
+                onClick={() => {
+                  setAuthPrompt(false);
+                  router.push("/login");
+                }}
+                className="w-full bg-[#142B6F] text-white font-semibold py-2 rounded-lg hover:bg-[#1A2D7A] transition-all mb-2"
+              >
+                Log In / Sign Up
+              </button>
+
+              <button
+                onClick={() => setAuthPrompt(false)}
+                className="w-full border border-gray-300 text-gray-700 py-2 rounded-lg hover:bg-gray-100 transition-all"
+              >
+                Cancel
+              </button>
             </motion.div>
           </motion.div>
         )}

@@ -5,16 +5,14 @@ import { supabase } from "@/lib/supabaseClient";
 import { motion } from "framer-motion";
 import ImageUploader from "@/components/admin/ImageUploader";
 
-const NAVY = "#142B6F";
-const GOLD = "#FFD601";
-
 export default function AddHostelPage() {
   const [hostelData, setHostelData] = useState({
     title: "",
     location: "",
     hostel_type: "",
     price_per_semester: "",
-    booking_fee: "", // 🆕 added field
+    booking_fee: "",
+    agent_fee_percentage: "", // ✅ NEW FIELD
     description: "",
     availability: "Available",
     verified: false,
@@ -24,7 +22,6 @@ export default function AddHostelPage() {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState(null);
 
-  // ✅ Handle input changes
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
     setHostelData({
@@ -33,15 +30,14 @@ export default function AddHostelPage() {
     });
   };
 
-  // ✅ Handle image uploads
   const handleImageUploadComplete = (uploadedImages) => {
     setImages(uploadedImages);
   };
 
-  // ✅ Submit handler
   const handleSubmit = async (e) => {
     e.preventDefault();
 
+    // ✅ Required validation
     if (
       !hostelData.title ||
       !hostelData.location ||
@@ -50,6 +46,16 @@ export default function AddHostelPage() {
       !hostelData.booking_fee
     ) {
       setMessage({ type: "error", text: "Please fill all required fields." });
+      return;
+    }
+
+    // ✅ If agent fee is entered but not numeric
+    if (
+      hostelData.agent_fee_percentage &&
+      (isNaN(hostelData.agent_fee_percentage) ||
+        hostelData.agent_fee_percentage < 0)
+    ) {
+      setMessage({ type: "error", text: "Agent Fee must be a valid number." });
       return;
     }
 
@@ -62,13 +68,16 @@ export default function AddHostelPage() {
     setMessage(null);
 
     try {
-      const { data, error } = await supabase.from("hostels").insert([
+      const { error } = await supabase.from("hostels").insert([
         {
           title: hostelData.title,
           location: hostelData.location,
           hostel_type: hostelData.hostel_type,
           price_per_semester: parseFloat(hostelData.price_per_semester),
-          booking_fee: parseFloat(hostelData.booking_fee), // 🆕 save booking fee
+          booking_fee: parseFloat(hostelData.booking_fee),
+          agent_fee_percentage: hostelData.agent_fee_percentage
+            ? parseInt(hostelData.agent_fee_percentage)
+            : null, // ✅ Save only if filled
           description: hostelData.description,
           availability: hostelData.availability,
           verified: hostelData.verified,
@@ -78,7 +87,6 @@ export default function AddHostelPage() {
       ]);
 
       if (error) {
-        console.error("Supabase error:", error);
         setMessage({
           type: "error",
           text: `❌ Failed to add hostel: ${error.message}`,
@@ -98,18 +106,18 @@ export default function AddHostelPage() {
           hostel_type: "",
           price_per_semester: "",
           booking_fee: "",
+          agent_fee_percentage: "",
           description: "",
           availability: "Available",
           verified: false,
         });
         setImages([]);
         setMessage(null);
-      }, 2500);
+      }, 2000);
     } catch (err) {
-      console.error("Unexpected error:", err);
       setMessage({
         type: "error",
-        text: "❌ Unexpected error occurred. Check console.",
+        text: "❌ Unexpected error occurred.",
       });
     } finally {
       setSaving(false);
@@ -135,106 +143,89 @@ export default function AddHostelPage() {
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
           className="bg-white/10 backdrop-blur-lg rounded-2xl border border-[#FFD601]/30 p-6 sm:p-8 shadow-2xl"
         >
           <form onSubmit={handleSubmit} className="space-y-6">
+            {/* FORM FIELDS */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Hostel Title */}
-              <div>
-                <label className="block text-[#FFD601] font-semibold mb-2">
-                  Hostel Name *
-                </label>
-                <input
-                  type="text"
-                  name="title"
-                  value={hostelData.title}
-                  onChange={handleChange}
-                  placeholder="Victory Hostel"
-                  className="w-full p-3 rounded-xl bg-[#142B6F]/80 border-2 border-[#FFD601]/30 text-white placeholder-blue-300 focus:border-[#FFD601] focus:outline-none"
-                />
-              </div>
+              {[
+                {
+                  label: "Hostel Name *",
+                  name: "title",
+                  placeholder: "Victory Hostel",
+                },
+                {
+                  label: "Location *",
+                  name: "location",
+                  placeholder: "UPSA, near main gate",
+                },
+                {
+                  label: "Hostel Type *",
+                  name: "hostel_type",
+                  placeholder: "4 in a room",
+                },
+                {
+                  label: "Price per Semester (₵) *",
+                  type: "number",
+                  name: "price_per_semester",
+                  placeholder: "₵2500",
+                },
+                {
+                  label: "Booking Fee (₵) *",
+                  type: "number",
+                  name: "booking_fee",
+                  placeholder: "₵150",
+                },
+              ].map((item, i) => (
+                <div key={i}>
+                  <label className="block text-[#FFD601] font-semibold mb-2">
+                    {item.label}
+                  </label>
+                  <input
+                    type={item.type || "text"}
+                    name={item.name}
+                    value={hostelData[item.name]}
+                    onChange={handleChange}
+                    placeholder={item.placeholder}
+                    className="w-full p-3 rounded-xl bg-[#142B6F]/80 border-2 border-[#FFD601]/30 text-white"
+                  />
+                </div>
+              ))}
 
-              {/* Location */}
+              {/* ✅ Agent Fee */}
               <div>
                 <label className="block text-[#FFD601] font-semibold mb-2">
-                  Location *
-                </label>
-                <input
-                  type="text"
-                  name="location"
-                  value={hostelData.location}
-                  onChange={handleChange}
-                  placeholder="UPSA, near main gate"
-                  className="w-full p-3 rounded-xl bg-[#142B6F]/80 border-2 border-[#FFD601]/30 text-white placeholder-blue-300 focus:border-[#FFD601] focus:outline-none"
-                />
-              </div>
-
-              {/* Hostel Type */}
-              <div>
-                <label className="block text-[#FFD601] font-semibold mb-2">
-                  Hostel Type (No. of people per room) *
-                </label>
-                <input
-                  type="text"
-                  name="hostel_type"
-                  value={hostelData.hostel_type}
-                  onChange={handleChange}
-                  placeholder="4 in a room"
-                  className="w-full p-3 rounded-xl bg-[#142B6F]/80 border-2 border-[#FFD601]/30 text-white placeholder-blue-300 focus:border-[#FFD601] focus:outline-none"
-                />
-              </div>
-
-              {/* Price per semester */}
-              <div>
-                <label className="block text-[#FFD601] font-semibold mb-2">
-                  Price per Semester (₵) *
+                  Agent Fee (%) (Optional)
                 </label>
                 <input
                   type="number"
-                  name="price_per_semester"
-                  value={hostelData.price_per_semester}
+                  name="agent_fee_percentage"
+                  value={hostelData.agent_fee_percentage}
                   onChange={handleChange}
-                  placeholder="₵2500"
-                  className="w-full p-3 rounded-xl bg-[#142B6F]/80 border-2 border-[#FFD601]/30 text-white placeholder-blue-300 focus:border-[#FFD601] focus:outline-none"
-                />
-              </div>
-
-              {/* 🆕 Booking Fee */}
-              <div>
-                <label className="block text-[#FFD601] font-semibold mb-2">
-                  Booking Fee (₵) *
-                </label>
-                <input
-                  type="number"
-                  name="booking_fee"
-                  value={hostelData.booking_fee}
-                  onChange={handleChange}
-                  placeholder="₵197"
-                  className="w-full p-3 rounded-xl bg-[#142B6F]/80 border-2 border-[#FFD601]/30 text-white placeholder-blue-300 focus:border-[#FFD601] focus:outline-none"
+                  placeholder="e.g. 8"
+                  className="w-full p-3 rounded-xl bg-[#142B6F]/80 border-2 border-[#FFD601]/30 text-white"
                 />
               </div>
             </div>
 
-            {/* Description */}
+            {/* DESCRIPTION */}
             <div>
               <label className="block text-[#FFD601] font-semibold mb-2">
-                Description / Amenities
+                Description
               </label>
               <textarea
                 name="description"
                 value={hostelData.description}
                 onChange={handleChange}
                 rows={4}
-                placeholder="Spacious rooms, free Wi-Fi, 24/7 security..."
-                className="w-full p-3 rounded-xl bg-[#142B6F]/80 border-2 border-[#FFD601]/30 text-white placeholder-blue-300 focus:border-[#FFD601] focus:outline-none resize-vertical"
+                className="w-full p-3 rounded-xl bg-[#142B6F]/80 border-2 border-[#FFD601]/30 text-white"
               />
             </div>
 
-            {/* Images */}
+            {/* IMAGES */}
             <div className="bg-[#142B6F]/60 rounded-xl p-6 border-2 border-[#FFD601]/20">
-              <div className="flex items-center justify-between mb-4">
-                <label className="block text-[#FFD601] font-semibold text-lg">
+              <div className="flex justify-between mb-4">
+                <label className="text-[#FFD601] font-semibold text-lg">
                   Hostel Images *
                 </label>
                 <span className="text-blue-200 text-sm">
@@ -247,72 +238,23 @@ export default function AddHostelPage() {
               />
             </div>
 
-            {/* Availability & Verified */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <label className="block text-[#FFD601] font-semibold mb-2">
-                  Availability
-                </label>
-                <select
-                  name="availability"
-                  value={hostelData.availability}
-                  onChange={handleChange}
-                  className="w-full p-3 rounded-xl bg-[#142B6F]/80 border-2 border-[#FFD601]/30 text-white focus:border-[#FFD601]"
-                >
-                  <option value="Available">Available</option>
-                  <option value="Full">Full</option>
-                  <option value="Under Maintenance">Under Maintenance</option>
-                </select>
-              </div>
-
-              <div className="flex items-center justify-center md:justify-end">
-                <label className="flex items-center space-x-3 p-3 rounded-xl bg-[#142B6F]/80 border-2 border-[#FFD601]/30 cursor-pointer hover:border-[#FFD601]/50 transition-all">
-                  <div className="relative">
-                    <input
-                      type="checkbox"
-                      name="verified"
-                      checked={hostelData.verified}
-                      onChange={handleChange}
-                      className="sr-only"
-                    />
-                    <div
-                      className={`w-10 h-6 rounded-full transition-all duration-200 ${
-                        hostelData.verified ? "bg-[#FFD601]" : "bg-blue-400"
-                      }`}
-                    >
-                      <div
-                        className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-all duration-200 ${
-                          hostelData.verified ? "left-5" : "left-1"
-                        }`}
-                      />
-                    </div>
-                  </div>
-                  <span className="text-[#FFD601] font-semibold">
-                    Verified Hostel
-                  </span>
-                </label>
-              </div>
-            </div>
-
-            {/* Submit */}
+            {/* SUBMIT */}
             <motion.button
               type="submit"
-              whileTap={{ scale: 0.95 }}
-              whileHover={{ scale: 1.02 }}
+              className="w-full py-4 bg-gradient-to-r from-[#FFD601] to-[#FFE769] text-[#142B6F] font-bold rounded-xl"
               disabled={saving}
-              className="w-full py-4 bg-gradient-to-r from-[#FFD601] to-[#FFE769] text-[#142B6F] font-bold rounded-xl hover:shadow-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed text-lg"
             >
               {saving ? "Adding Hostel..." : "Add Hostel to Listing"}
             </motion.button>
 
             {message && (
               <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
                 className={`p-4 rounded-xl text-center font-semibold ${
                   message.type === "error"
-                    ? "bg-red-500/20 text-red-200 border border-red-500/30"
-                    : "bg-green-500/20 text-green-200 border border-green-500/30"
+                    ? "bg-red-500/20 text-red-200"
+                    : "bg-green-500/20 text-green-200"
                 }`}
               >
                 {message.text}
