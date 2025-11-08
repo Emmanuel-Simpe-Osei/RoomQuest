@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { motion } from "framer-motion";
 import { useParams, useRouter } from "next/navigation";
+import ImageUploader from "@/components/admin/ImageUploader";
 import {
   ArrowLeft,
   Save,
@@ -12,6 +13,8 @@ import {
   Building,
   DollarSign,
   CheckCircle,
+  ImageIcon,
+  Percent,
 } from "lucide-react";
 
 const NAVY = "#142B6F";
@@ -23,6 +26,7 @@ export default function EditHostelPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState(null);
+  const [images, setImages] = useState([]);
 
   const [formData, setFormData] = useState({
     title: "",
@@ -30,6 +34,9 @@ export default function EditHostelPage() {
     hostel_type: "",
     description: "",
     price_per_semester: "",
+    booking_fee: "",
+    agent_fee_percentage: "",
+    book4me_fee: "0", // ✅ NEW: BOOK 4 Me Fee field
     availability: "Available",
     verified: false,
   });
@@ -48,7 +55,19 @@ export default function EditHostelPage() {
           console.error("Error fetching hostel:", error);
           setMessage({ type: "error", text: "Failed to load hostel details" });
         } else {
-          setFormData(data || {});
+          setFormData({
+            title: data.title || "",
+            location: data.location || "",
+            hostel_type: data.hostel_type || "",
+            description: data.description || "",
+            price_per_semester: data.price_per_semester?.toString() || "",
+            booking_fee: data.booking_fee?.toString() || "",
+            agent_fee_percentage: data.agent_fee_percentage?.toString() || "",
+            book4me_fee: data.book4me_fee?.toString() || "0", // ✅ NEW: Load BOOK 4 Me fee
+            availability: data.availability || "Available",
+            verified: data.verified || false,
+          });
+          setImages(data.images || []);
         }
       } catch (error) {
         console.error("Unexpected error:", error);
@@ -70,9 +89,54 @@ export default function EditHostelPage() {
     });
   };
 
+  // ✅ Handle images from uploader
+  const handleImageUploadComplete = (uploadedImages) => {
+    setImages(uploadedImages);
+  };
+
   // ✅ Save changes
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    // ✅ Required validation
+    if (
+      !formData.title ||
+      !formData.location ||
+      !formData.hostel_type ||
+      !formData.price_per_semester ||
+      !formData.booking_fee
+    ) {
+      setMessage({ type: "error", text: "Please fill all required fields." });
+      return;
+    }
+
+    // ✅ If agent fee is entered but not numeric
+    if (
+      formData.agent_fee_percentage &&
+      (isNaN(formData.agent_fee_percentage) ||
+        formData.agent_fee_percentage < 0)
+    ) {
+      setMessage({ type: "error", text: "Agent Fee must be a valid number." });
+      return;
+    }
+
+    // ✅ If BOOK 4 Me fee is entered but not numeric
+    if (
+      formData.book4me_fee &&
+      (isNaN(formData.book4me_fee) || formData.book4me_fee < 0)
+    ) {
+      setMessage({
+        type: "error",
+        text: "BOOK 4 Me Fee must be a valid number.",
+      });
+      return;
+    }
+
+    if (images.length === 0) {
+      setMessage({ type: "error", text: "Please upload at least one image." });
+      return;
+    }
+
     setSaving(true);
     setMessage(null);
 
@@ -85,8 +149,14 @@ export default function EditHostelPage() {
           hostel_type: formData.hostel_type,
           description: formData.description,
           price_per_semester: parseFloat(formData.price_per_semester),
+          booking_fee: parseFloat(formData.booking_fee),
+          agent_fee_percentage: formData.agent_fee_percentage
+            ? parseInt(formData.agent_fee_percentage)
+            : null,
+          book4me_fee: parseFloat(formData.book4me_fee) || 0, // ✅ NEW: Update BOOK 4 Me fee
           availability: formData.availability,
           verified: formData.verified,
+          images: images,
           updated_at: new Date().toISOString(),
         })
         .eq("id", id);
@@ -127,7 +197,7 @@ export default function EditHostelPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#142B6F] to-[#1A2D7A] py-6 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-2xl mx-auto">
+      <div className="max-w-4xl mx-auto">
         {/* Header with Back Button */}
         <motion.div
           initial={{ opacity: 0, y: -20 }}
@@ -158,64 +228,206 @@ export default function EditHostelPage() {
           className="bg-white/10 backdrop-blur-lg border border-white/20 rounded-2xl p-6 shadow-2xl"
         >
           <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Title */}
-            <div>
-              <label className="block text-[#FFD601] font-semibold mb-3 text-lg">
-                Hostel Title
-              </label>
-              <div className="relative">
-                <Building
-                  className="absolute left-3 top-1/2 transform -translate-y-1/2 text-blue-300"
-                  size={20}
-                />
+            {/* Grid Layout for Form Fields */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Title */}
+              <div className="md:col-span-2">
+                <label className="block text-[#FFD601] font-semibold mb-3 text-lg">
+                  Hostel Title *
+                </label>
+                <div className="relative">
+                  <Building
+                    className="absolute left-3 top-1/2 transform -translate-y-1/2 text-blue-300"
+                    size={20}
+                  />
+                  <input
+                    type="text"
+                    name="title"
+                    value={formData.title}
+                    onChange={handleChange}
+                    required
+                    className="w-full pl-12 pr-4 py-4 rounded-xl bg-[#142B6F]/80 border-2 border-[#FFD601]/30 text-white placeholder-blue-300 focus:border-[#FFD601] focus:outline-none focus:ring-2 focus:ring-[#FFD601]/30 transition-all duration-200"
+                    placeholder="Enter hostel name"
+                  />
+                </div>
+              </div>
+
+              {/* Location */}
+              <div className="md:col-span-2">
+                <label className="block text-[#FFD601] font-semibold mb-3 text-lg">
+                  Location *
+                </label>
+                <div className="relative">
+                  <MapPin
+                    className="absolute left-3 top-1/2 transform -translate-y-1/2 text-blue-300"
+                    size={20}
+                  />
+                  <input
+                    type="text"
+                    name="location"
+                    value={formData.location}
+                    onChange={handleChange}
+                    required
+                    className="w-full pl-12 pr-4 py-4 rounded-xl bg-[#142B6F]/80 border-2 border-[#FFD601]/30 text-white placeholder-blue-300 focus:border-[#FFD601] focus:outline-none focus:ring-2 focus:ring-[#FFD601]/30 transition-all duration-200"
+                    placeholder="Enter hostel location"
+                  />
+                </div>
+              </div>
+
+              {/* Hostel Type */}
+              <div className="md:col-span-2">
+                <label className="block text-[#FFD601] font-semibold mb-3 text-lg">
+                  Hostel Type *
+                </label>
                 <input
                   type="text"
-                  name="title"
-                  value={formData.title}
+                  name="hostel_type"
+                  value={formData.hostel_type}
                   onChange={handleChange}
                   required
-                  className="w-full pl-12 pr-4 py-4 rounded-xl bg-[#142B6F]/80 border-2 border-[#FFD601]/30 text-white placeholder-blue-300 focus:border-[#FFD601] focus:outline-none focus:ring-2 focus:ring-[#FFD601]/30 transition-all duration-200"
-                  placeholder="Enter hostel name"
+                  placeholder="e.g., 2 in a room, Single room, Self contain"
+                  className="w-full px-4 py-4 rounded-xl bg-[#142B6F]/80 border-2 border-[#FFD601]/30 text-white placeholder-blue-300 focus:border-[#FFD601] focus:outline-none focus:ring-2 focus:ring-[#FFD601]/30 transition-all duration-200"
                 />
               </div>
-            </div>
 
-            {/* Location */}
-            <div>
-              <label className="block text-[#FFD601] font-semibold mb-3 text-lg">
-                Location
-              </label>
-              <div className="relative">
-                <MapPin
-                  className="absolute left-3 top-1/2 transform -translate-y-1/2 text-blue-300"
-                  size={20}
-                />
-                <input
-                  type="text"
-                  name="location"
-                  value={formData.location}
+              {/* Price per semester */}
+              <div>
+                <label className="block text-[#FFD601] font-semibold mb-3">
+                  Price per Semester (₵) *
+                </label>
+                <div className="relative">
+                  <DollarSign
+                    className="absolute left-3 top-1/2 transform -translate-y-1/2 text-blue-300"
+                    size={20}
+                  />
+                  <input
+                    type="number"
+                    name="price_per_semester"
+                    value={formData.price_per_semester}
+                    onChange={handleChange}
+                    required
+                    min="0"
+                    step="0.01"
+                    className="w-full pl-12 pr-4 py-4 rounded-xl bg-[#142B6F]/80 border-2 border-[#FFD601]/30 text-white placeholder-blue-300 focus:border-[#FFD601] focus:outline-none focus:ring-2 focus:ring-[#FFD601]/30 transition-all duration-200"
+                    placeholder="0.00"
+                  />
+                  <span className="absolute right-3 top-1/2 transform -translate-y-1/2 text-blue-300 font-semibold">
+                    ₵
+                  </span>
+                </div>
+              </div>
+
+              {/* Booking Fee */}
+              <div>
+                <label className="block text-[#FFD601] font-semibold mb-3">
+                  Booking Fee (₵) *
+                </label>
+                <div className="relative">
+                  <DollarSign
+                    className="absolute left-3 top-1/2 transform -translate-y-1/2 text-blue-300"
+                    size={20}
+                  />
+                  <input
+                    type="number"
+                    name="booking_fee"
+                    value={formData.booking_fee}
+                    onChange={handleChange}
+                    required
+                    min="0"
+                    step="0.01"
+                    className="w-full pl-12 pr-4 py-4 rounded-xl bg-[#142B6F]/80 border-2 border-[#FFD601]/30 text-white placeholder-blue-300 focus:border-[#FFD601] focus:outline-none focus:ring-2 focus:ring-[#FFD601]/30 transition-all duration-200"
+                    placeholder="0.00"
+                  />
+                  <span className="absolute right-3 top-1/2 transform -translate-y-1/2 text-blue-300 font-semibold">
+                    ₵
+                  </span>
+                </div>
+              </div>
+
+              {/* Agent Fee Percentage */}
+              <div>
+                <label className="block text-[#FFD601] font-semibold mb-3">
+                  Agent Fee (%) (Optional)
+                </label>
+                <div className="relative">
+                  <Percent
+                    className="absolute left-3 top-1/2 transform -translate-y-1/2 text-blue-300"
+                    size={20}
+                  />
+                  <input
+                    type="number"
+                    name="agent_fee_percentage"
+                    value={formData.agent_fee_percentage}
+                    onChange={handleChange}
+                    min="0"
+                    max="100"
+                    className="w-full pl-12 pr-4 py-4 rounded-xl bg-[#142B6F]/80 border-2 border-[#FFD601]/30 text-white placeholder-blue-300 focus:border-[#FFD601] focus:outline-none focus:ring-2 focus:ring-[#FFD601]/30 transition-all duration-200"
+                    placeholder="e.g., 8"
+                  />
+                  <span className="absolute right-3 top-1/2 transform -translate-y-1/2 text-blue-300 font-semibold">
+                    %
+                  </span>
+                </div>
+              </div>
+
+              {/* ✅ NEW: BOOK 4 Me Fee */}
+              <div>
+                <label className="block text-[#FFD601] font-semibold mb-3">
+                  BOOK 4 Me Service Fee (₵)
+                </label>
+                <div className="relative">
+                  <DollarSign
+                    className="absolute left-3 top-1/2 transform -translate-y-1/2 text-blue-300"
+                    size={20}
+                  />
+                  <input
+                    type="number"
+                    name="book4me_fee"
+                    value={formData.book4me_fee}
+                    onChange={handleChange}
+                    min="0"
+                    step="0.01"
+                    className="w-full pl-12 pr-4 py-4 rounded-xl bg-[#142B6F]/80 border-2 border-[#FFD601]/30 text-white placeholder-blue-300 focus:border-[#FFD601] focus:outline-none focus:ring-2 focus:ring-[#FFD601]/30 transition-all duration-200"
+                    placeholder="0.00"
+                  />
+                  <span className="absolute right-3 top-1/2 transform -translate-y-1/2 text-blue-300 font-semibold">
+                    ₵
+                  </span>
+                </div>
+                <p className="text-blue-200 text-sm mt-2">
+                  💡 Additional fee for "BOOK 4 Me" service when users can't
+                  inspect in person
+                </p>
+              </div>
+
+              {/* Availability */}
+              <div>
+                <label className="block text-[#FFD601] font-semibold mb-3">
+                  Availability Status
+                </label>
+                <select
+                  name="availability"
+                  value={formData.availability}
                   onChange={handleChange}
-                  required
-                  className="w-full pl-12 pr-4 py-4 rounded-xl bg-[#142B6F]/80 border-2 border-[#FFD601]/30 text-white placeholder-blue-300 focus:border-[#FFD601] focus:outline-none focus:ring-2 focus:ring-[#FFD601]/30 transition-all duration-200"
-                  placeholder="Enter hostel location"
-                />
+                  className="w-full px-4 py-4 rounded-xl bg-[#142B6F]/80 border-2 border-[#FFD601]/30 text-white focus:border-[#FFD601] focus:outline-none focus:ring-2 focus:ring-[#FFD601]/30 transition-all duration-200"
+                >
+                  <option value="Available" className="bg-[#142B6F]">
+                    🟢 Available
+                  </option>
+                  <option value="Booked" className="bg-[#142B6F]">
+                    🟡 Booked
+                  </option>
+                  <option value="Occupied" className="bg-[#142B6F]">
+                    🔴 Occupied
+                  </option>
+                  <option value="Not Available" className="bg-[#142B6F]">
+                    ⚫ Not Available
+                  </option>
+                  <option value="Coming Soon" className="bg-[#142B6F]">
+                    🔵 Coming Soon
+                  </option>
+                </select>
               </div>
-            </div>
-
-            {/* Hostel Type */}
-            <div>
-              <label className="block text-[#FFD601] font-semibold mb-3 text-lg">
-                Hostel Type
-              </label>
-              <input
-                type="text"
-                name="hostel_type"
-                value={formData.hostel_type}
-                onChange={handleChange}
-                required
-                placeholder="e.g., 2 in a room, Single room, Self contain"
-                className="w-full px-4 py-4 rounded-xl bg-[#142B6F]/80 border-2 border-[#FFD601]/30 text-white placeholder-blue-300 focus:border-[#FFD601] focus:outline-none focus:ring-2 focus:ring-[#FFD601]/30 transition-all duration-200"
-              />
             </div>
 
             {/* Description */}
@@ -233,61 +445,21 @@ export default function EditHostelPage() {
               />
             </div>
 
-            {/* Price per semester */}
-            <div>
-              <label className="block text-[#FFD601] font-semibold mb-3 text-lg">
-                Price per Semester
-              </label>
-              <div className="relative">
-                <DollarSign
-                  className="absolute left-3 top-1/2 transform -translate-y-1/2 text-blue-300"
-                  size={20}
-                />
-                <input
-                  type="number"
-                  name="price_per_semester"
-                  value={formData.price_per_semester}
-                  onChange={handleChange}
-                  required
-                  min="0"
-                  step="0.01"
-                  className="w-full pl-12 pr-4 py-4 rounded-xl bg-[#142B6F]/80 border-2 border-[#FFD601]/30 text-white placeholder-blue-300 focus:border-[#FFD601] focus:outline-none focus:ring-2 focus:ring-[#FFD601]/30 transition-all duration-200"
-                  placeholder="0.00"
-                />
-                <span className="absolute right-3 top-1/2 transform -translate-y-1/2 text-blue-300 font-semibold">
-                  ₵
+            {/* Image Uploader */}
+            <div className="bg-[#142B6F]/60 rounded-xl p-6 border-2 border-[#FFD601]/20">
+              <div className="flex justify-between items-center mb-4">
+                <label className="text-[#FFD601] font-semibold text-lg flex items-center gap-2">
+                  <ImageIcon size={20} />
+                  Hostel Images *
+                </label>
+                <span className="text-blue-200 text-sm">
+                  {images.length}/7 images
                 </span>
               </div>
-            </div>
-
-            {/* Availability */}
-            <div>
-              <label className="block text-[#FFD601] font-semibold mb-3 text-lg">
-                Availability Status
-              </label>
-              <select
-                name="availability"
-                value={formData.availability}
-                onChange={handleChange}
-                className="w-full px-4 py-4 rounded-xl bg-[#142B6F]/80 border-2 border-[#FFD601]/30 text-white focus:border-[#FFD601] focus:outline-none focus:ring-2 focus:ring-[#FFD601]/30 transition-all duration-200"
-              >
-                <option value="Available" className="bg-[#142B6F]">
-                  🟢 Available
-                </option>
-                <option value="Booked" className="bg-[#142B6F]">
-                  🟡 Booked
-                </option>
-                <option value="Occupied" className="bg-[#142B6F]">
-                  🔴 Occupied
-                </option>
-              </select>
-              <p className="text-blue-300 text-sm mt-2">
-                {formData.availability === "Occupied"
-                  ? "This hostel will appear dimmed out to users."
-                  : formData.availability === "Booked"
-                  ? "This hostel will show as booked but still visible."
-                  : "This hostel is available for booking."}
-              </p>
+              <ImageUploader
+                onUploadComplete={handleImageUploadComplete}
+                existingImages={images}
+              />
             </div>
 
             {/* Verified toggle */}
@@ -364,27 +536,6 @@ export default function EditHostelPage() {
               </motion.div>
             )}
           </form>
-        </motion.div>
-
-        {/* Quick Stats */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-          className="grid grid-cols-2 gap-4 mt-6"
-        >
-          <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl p-4 text-center">
-            <div className="text-2xl font-bold text-[#FFD601]">
-              {formData.title?.length || 0}
-            </div>
-            <div className="text-blue-200 text-xs">Title Length</div>
-          </div>
-          <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl p-4 text-center">
-            <div className="text-2xl font-bold text-[#FFD601]">
-              {formData.description?.length || 0}
-            </div>
-            <div className="text-blue-200 text-xs">Description Length</div>
-          </div>
         </motion.div>
       </div>
     </div>

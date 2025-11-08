@@ -11,6 +11,8 @@ import {
   LogIn,
   Home,
   Star,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { useRouter } from "next/navigation";
@@ -51,6 +53,8 @@ export default function RoomCard({ room, onOpenGallery }) {
   const [userWhatsApp, setUserWhatsApp] = useState("");
   const [paying, setPaying] = useState(false);
   const [paymentSuccess, setPaymentSuccess] = useState(false);
+  const [book4meSelected, setBook4meSelected] = useState(false); // ✅ NEW: BOOK 4 Me state
+  const [book4meFee, setBook4meFee] = useState(0); // ✅ NEW: BOOK 4 Me fee
 
   const occupied = room.availability === "Occupied";
   const booked = room.availability === "Booked";
@@ -61,12 +65,42 @@ export default function RoomCard({ room, onOpenGallery }) {
     ? JSON.parse(room.images)
     : [];
 
+  // ✅ NEW: Calculate total price
+  const calculateTotalPrice = () => {
+    const basePrice = room.booking_price || 197;
+    const book4mePrice = book4meSelected ? book4meFee : 0;
+    return basePrice + book4mePrice;
+  };
+
+  // ✅ NEW: Fetch BOOK 4 Me fee when modal opens
+  useEffect(() => {
+    if (showBookingModal && room?.id) {
+      const fetchBook4meFee = async () => {
+        try {
+          const { data, error } = await supabase
+            .from("rooms")
+            .select("book4me_fee")
+            .eq("id", room.id)
+            .single();
+
+          if (!error && data) {
+            setBook4meFee(data.book4me_fee || 0);
+          }
+        } catch (err) {
+          console.error("Failed to fetch BOOK 4 Me fee:", err);
+        }
+      };
+      fetchBook4meFee();
+    }
+  }, [showBookingModal, room?.id]);
+
   useEffect(() => {
     if (paymentSuccess && showBookingModal) {
       const t = setTimeout(() => {
         setShowBookingModal(false);
         setPaymentSuccess(false);
         setPaying(false);
+        setBook4meSelected(false); // ✅ NEW: Reset BOOK 4 Me selection
         router.push("/dashboard/user/bookings");
       }, 2000);
       return () => clearTimeout(t);
@@ -85,6 +119,8 @@ export default function RoomCard({ room, onOpenGallery }) {
           whatsapp: userWhatsApp,
           status: "paid",
           reference: response.reference,
+          book4me_service: book4meSelected, // ✅ NEW: Save BOOK 4 Me selection
+          amount: calculateTotalPrice(), // ✅ NEW: Save total amount
           created_at: new Date().toISOString(),
         },
       ]);
@@ -105,11 +141,11 @@ export default function RoomCard({ room, onOpenGallery }) {
   };
 
   /* -----------------------------------------------------
-     💳 Handle Paystack Payment (copied hostel logic)
+     💳 Handle Paystack Payment (updated for BOOK 4 Me)
   ------------------------------------------------------ */
   const handlePayment = async () => {
-    if (!room?.booking_price)
-      return toast.error("No booking fee for this room.");
+    const totalAmount = calculateTotalPrice();
+    if (totalAmount <= 0) return toast.error("Invalid booking amount.");
     if (!userWhatsApp.trim())
       return toast.error("Please enter your WhatsApp number.");
 
@@ -130,7 +166,7 @@ export default function RoomCard({ room, onOpenGallery }) {
       const handler = PaystackPop.setup({
         key: process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY,
         email: user.email || "booking@roomquest.com",
-        amount: room.booking_price * 100,
+        amount: totalAmount * 100, // ✅ UPDATED: Use total amount
         currency: "GHS",
         reference: `RQ-ROOM-${Date.now()}-${Math.random()
           .toString(36)
@@ -154,6 +190,11 @@ export default function RoomCard({ room, onOpenGallery }) {
               variable_name: "room_name",
               value: room.title,
             },
+            {
+              display_name: "BOOK 4 Me Service",
+              variable_name: "book4me_service",
+              value: book4meSelected ? "Yes" : "No",
+            },
           ],
         },
       });
@@ -174,6 +215,7 @@ export default function RoomCard({ room, onOpenGallery }) {
       setUserWhatsApp("");
       setPaying(false);
       setPaymentSuccess(false);
+      setBook4meSelected(false); // ✅ NEW: Reset BOOK 4 Me selection
     }
   };
 
@@ -295,7 +337,7 @@ export default function RoomCard({ room, onOpenGallery }) {
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
               transition={{ duration: 0.3 }}
-              className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-lg relative text-center"
+              className="bg-white rounded-2xl p-6 w-full max-w-md shadow-lg relative text-center"
             >
               {!paymentSuccess && (
                 <button
@@ -329,13 +371,71 @@ export default function RoomCard({ room, onOpenGallery }) {
                     Pay a one-time{" "}
                     <span className="font-semibold text-[#142B6F]">
                       Service & Agent Viewing Fee
-                    </span>{" "}
-                    of{" "}
-                    <span className="text-[#FFD601] font-bold">
-                      ₵{room.booking_price || 197}
                     </span>
-                    .
                   </p>
+
+                  {/* ✅ NEW: BOOK 4 Me Option */}
+                  <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-4 text-left">
+                    <div className="flex items-start gap-3">
+                      <input
+                        type="checkbox"
+                        id="book4me"
+                        checked={book4meSelected}
+                        onChange={(e) => setBook4meSelected(e.target.checked)}
+                        disabled={paying}
+                        className="mt-1 w-4 h-4 text-[#142B6F] bg-white border-gray-300 rounded focus:ring-[#142B6F]"
+                      />
+                      <div className="flex-1">
+                        <label
+                          htmlFor="book4me"
+                          className="flex items-center gap-2 cursor-pointer"
+                        >
+                          <span className="font-semibold text-[#142B6F]">
+                            BOOK 4 Me
+                          </span>
+                          {book4meSelected ? (
+                            <Eye className="w-4 h-4 text-green-600" />
+                          ) : (
+                            <EyeOff className="w-4 h-4 text-gray-500" />
+                          )}
+                        </label>
+                        <p className="text-sm text-gray-600 mt-1">
+                          Can't Inspect in Person? We've Got You Covered
+                          {book4meFee > 0 && (
+                            <span className="text-[#FFD601] font-semibold ml-1">
+                              (+₵{book4meFee})
+                            </span>
+                          )}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* ✅ UPDATED: Price Display */}
+                  <div className="bg-gray-50 rounded-lg p-3 mb-4">
+                    <div className="flex justify-between items-center text-sm">
+                      <span className="text-gray-600">Base Booking Fee:</span>
+                      <span className="font-semibold">
+                        ₵{room.booking_price || 197}
+                      </span>
+                    </div>
+                    {book4meSelected && book4meFee > 0 && (
+                      <div className="flex justify-between items-center text-sm mt-1">
+                        <span className="text-gray-600">
+                          BOOK 4 Me Service:
+                        </span>
+                        <span className="font-semibold text-[#FFD601]">
+                          +₵{book4meFee}
+                        </span>
+                      </div>
+                    )}
+                    <div className="flex justify-between items-center text-base font-bold mt-2 pt-2 border-t border-gray-200">
+                      <span className="text-[#142B6F]">Total Amount:</span>
+                      <span className="text-[#142B6F]">
+                        ₵{calculateTotalPrice()}
+                      </span>
+                    </div>
+                  </div>
 
                   <input
                     type="tel"
@@ -359,7 +459,7 @@ export default function RoomCard({ room, onOpenGallery }) {
                         Processing...
                       </>
                     ) : (
-                      "Confirm & Pay"
+                      `Pay ₵${calculateTotalPrice()}`
                     )}
                   </motion.button>
 

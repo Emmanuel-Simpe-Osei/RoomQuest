@@ -12,7 +12,8 @@ export default function AddHostelPage() {
     hostel_type: "",
     price_per_semester: "",
     booking_fee: "",
-    agent_fee_percentage: "", // ✅ NEW FIELD
+    agent_fee_percentage: "", // Existing field
+    book4me_fee: "0", // ✅ NEW: BOOK 4 Me Fee field
     description: "",
     availability: "Available",
     verified: false,
@@ -59,6 +60,18 @@ export default function AddHostelPage() {
       return;
     }
 
+    // ✅ If BOOK 4 Me fee is entered but not numeric
+    if (
+      hostelData.book4me_fee &&
+      (isNaN(hostelData.book4me_fee) || hostelData.book4me_fee < 0)
+    ) {
+      setMessage({
+        type: "error",
+        text: "BOOK 4 Me Fee must be a valid number.",
+      });
+      return;
+    }
+
     if (images.length === 0) {
       setMessage({ type: "error", text: "Please upload at least one image." });
       return;
@@ -77,7 +90,8 @@ export default function AddHostelPage() {
           booking_fee: parseFloat(hostelData.booking_fee),
           agent_fee_percentage: hostelData.agent_fee_percentage
             ? parseInt(hostelData.agent_fee_percentage)
-            : null, // ✅ Save only if filled
+            : null,
+          book4me_fee: parseFloat(hostelData.book4me_fee) || 0, // ✅ NEW: Save BOOK 4 Me fee
           description: hostelData.description,
           availability: hostelData.availability,
           verified: hostelData.verified,
@@ -107,6 +121,7 @@ export default function AddHostelPage() {
           price_per_semester: "",
           booking_fee: "",
           agent_fee_percentage: "",
+          book4me_fee: "0", // ✅ NEW: Reset BOOK 4 Me fee
           description: "",
           availability: "Available",
           verified: false,
@@ -176,6 +191,19 @@ export default function AddHostelPage() {
                   name: "booking_fee",
                   placeholder: "₵150",
                 },
+                {
+                  label: "Agent Fee (%) (Optional)",
+                  type: "number",
+                  name: "agent_fee_percentage",
+                  placeholder: "e.g. 8",
+                },
+                // ✅ NEW: BOOK 4 Me Fee
+                {
+                  label: "BOOK 4 Me Service Fee (₵)",
+                  type: "number",
+                  name: "book4me_fee",
+                  placeholder: "₵50 (additional fee)",
+                },
               ].map((item, i) => (
                 <div key={i}>
                   <label className="block text-[#FFD601] font-semibold mb-2">
@@ -189,22 +217,47 @@ export default function AddHostelPage() {
                     placeholder={item.placeholder}
                     className="w-full p-3 rounded-xl bg-[#142B6F]/80 border-2 border-[#FFD601]/30 text-white"
                   />
+                  {item.name === "book4me_fee" && (
+                    <p className="text-blue-200 text-sm mt-2">
+                      💡 Additional fee for "BOOK 4 Me" service when users can't
+                      inspect in person
+                    </p>
+                  )}
                 </div>
               ))}
+            </div>
 
-              {/* ✅ Agent Fee */}
+            {/* Availability and Verified */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
                 <label className="block text-[#FFD601] font-semibold mb-2">
-                  Agent Fee (%) (Optional)
+                  Availability
                 </label>
-                <input
-                  type="number"
-                  name="agent_fee_percentage"
-                  value={hostelData.agent_fee_percentage}
+                <select
+                  name="availability"
+                  value={hostelData.availability}
                   onChange={handleChange}
-                  placeholder="e.g. 8"
                   className="w-full p-3 rounded-xl bg-[#142B6F]/80 border-2 border-[#FFD601]/30 text-white"
+                >
+                  <option value="Available">Available</option>
+                  <option value="Not Available">Not Available</option>
+                  <option value="Coming Soon">Coming Soon</option>
+                  <option value="Occupied">Occupied</option>
+                  <option value="Booked">Booked</option>
+                </select>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <input
+                  type="checkbox"
+                  name="verified"
+                  checked={hostelData.verified}
+                  onChange={handleChange}
+                  className="w-5 h-5 text-[#FFD601] bg-[#142B6F] border-2 border-[#FFD601] rounded"
                 />
+                <label className="text-[#FFD601] font-semibold">
+                  Mark as Verified
+                </label>
               </div>
             </div>
 
@@ -219,6 +272,7 @@ export default function AddHostelPage() {
                 onChange={handleChange}
                 rows={4}
                 className="w-full p-3 rounded-xl bg-[#142B6F]/80 border-2 border-[#FFD601]/30 text-white"
+                placeholder="Describe the hostel facilities, amenities, rules, etc..."
               />
             </div>
 
@@ -241,7 +295,8 @@ export default function AddHostelPage() {
             {/* SUBMIT */}
             <motion.button
               type="submit"
-              className="w-full py-4 bg-gradient-to-r from-[#FFD601] to-[#FFE769] text-[#142B6F] font-bold rounded-xl"
+              whileTap={{ scale: 0.95 }}
+              className="w-full py-4 bg-gradient-to-r from-[#FFD601] to-[#FFE769] text-[#142B6F] font-bold rounded-xl hover:shadow-lg transition-all duration-200"
               disabled={saving}
             >
               {saving ? "Adding Hostel..." : "Add Hostel to Listing"}
@@ -253,8 +308,8 @@ export default function AddHostelPage() {
                 animate={{ opacity: 1 }}
                 className={`p-4 rounded-xl text-center font-semibold ${
                   message.type === "error"
-                    ? "bg-red-500/20 text-red-200"
-                    : "bg-green-500/20 text-green-200"
+                    ? "bg-red-500/20 text-red-200 border border-red-500/30"
+                    : "bg-green-500/20 text-green-200 border border-green-500/30"
                 }`}
               >
                 {message.text}

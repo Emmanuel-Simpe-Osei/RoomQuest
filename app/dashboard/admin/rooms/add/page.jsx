@@ -19,6 +19,7 @@ export default function AddRoomPage() {
     price: "",
     paymentMode: "",
     bookingPrice: "",
+    book4meFee: "0", // ✅ NEW: BOOK 4 Me Fee field
     availability: "Available",
     verified: false,
   });
@@ -95,6 +96,7 @@ export default function AddRoomPage() {
             booking_price: roomData.bookingPrice
               ? parseFloat(roomData.bookingPrice)
               : null,
+            book4me_fee: parseFloat(roomData.book4meFee) || 0, // ✅ NEW: Save BOOK 4 Me fee
             availability: roomData.availability,
             verified: roomData.verified,
             images: images,
@@ -126,6 +128,7 @@ export default function AddRoomPage() {
           price: "",
           paymentMode: "",
           bookingPrice: "",
+          book4meFee: "0", // ✅ NEW: Reset BOOK 4 Me fee
           availability: "Available",
           verified: false,
         });
@@ -289,6 +292,71 @@ export default function AddRoomPage() {
                 placeholder="₵100 (optional)"
                 className="w-full p-3 rounded-xl bg-[#142B6F]/80 border-2 border-[#FFD601]/30 text-white"
               />
+            </div>
+
+            {/* ✅ NEW: BOOK 4 Me Fee - Added in the correct position */}
+            <div>
+              <label className="block text-[#FFD601] font-semibold mb-2">
+                BOOK 4 Me Service Fee (₵)
+              </label>
+              <input
+                type="number"
+                name="book4meFee"
+                value={roomData.book4meFee}
+                onChange={handleChange}
+                placeholder="₵50 (additional fee for BOOK 4 Me service)"
+                className="w-full p-3 rounded-xl bg-[#142B6F]/80 border-2 border-[#FFD601]/30 text-white"
+              />
+              <p className="text-blue-200 text-sm mt-2">
+                💡 Additional fee for "BOOK 4 Me" service when users can't
+                inspect in person
+              </p>
+            </div>
+
+            {/* Payment Mode */}
+            <div>
+              <label className="block text-[#FFD601] font-semibold mb-2">
+                Payment Mode
+              </label>
+              <input
+                type="text"
+                name="paymentMode"
+                value={roomData.paymentMode}
+                onChange={handleChange}
+                placeholder="e.g., Monthly, Quarterly, Yearly"
+                className="w-full p-3 rounded-xl bg-[#142B6F]/80 border-2 border-[#FFD601]/30 text-white"
+              />
+            </div>
+
+            {/* Availability */}
+            <div>
+              <label className="block text-[#FFD601] font-semibold mb-2">
+                Availability
+              </label>
+              <select
+                name="availability"
+                value={roomData.availability}
+                onChange={handleChange}
+                className="w-full p-3 rounded-xl bg-[#142B6F]/80 border-2 border-[#FFD601]/30 text-white"
+              >
+                <option value="Available">Available</option>
+                <option value="Not Available">Not Available</option>
+                <option value="Coming Soon">Coming Soon</option>
+              </select>
+            </div>
+
+            {/* Verified */}
+            <div className="flex items-center gap-3">
+              <input
+                type="checkbox"
+                name="verified"
+                checked={roomData.verified}
+                onChange={handleChange}
+                className="w-5 h-5 text-[#FFD601] bg-[#142B6F] border-2 border-[#FFD601] rounded"
+              />
+              <label className="text-[#FFD601] font-semibold">
+                Mark as Verified
+              </label>
             </div>
 
             {/* Image Uploader */}
