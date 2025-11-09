@@ -80,7 +80,7 @@ export default function UserDashboardLayout({ children }) {
     },
     { name: "Profile", href: "/dashboard/user/profile", icon: User },
     {
-      name: "Distance Booking",
+      name: "Book 4 Me",
       href: "/dashboard/user/distance-info",
       icon: Video,
     },

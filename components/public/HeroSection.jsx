@@ -57,11 +57,12 @@ export default function HeroSection() {
         className="relative z-10 max-w-2xl px-6 text-white"
       >
         <h1 className="text-3xl md:text-5xl font-extrabold mb-4 leading-tight">
-          Find Safe Rooms & Verified Hostels Across Ghana
+          Find a Space That Feels Right, Without the Stress
         </h1>
 
         <p className="text-base md:text-lg text-gray-200 mb-8">
-          Discover affordable student accommodations near your campus.
+          No more endless searches or fake listings. Just safe, verified, and
+          affordable rooms that suit your lifestyle and budget.
         </p>
 
         {/* 🔍 Search bar */}

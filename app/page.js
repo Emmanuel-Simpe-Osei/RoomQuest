@@ -141,7 +141,7 @@ export default function HomePage() {
             {
               icon: <ShieldCheck size={36} className="text-[#FFD601]" />,
               title: "Verified Listings",
-              desc: "Every hostel and room is verified by our local agents before appearing online.",
+              desc: "We verify every hostel and apartment before listing.",
             },
             {
               icon: <Smartphone size={36} className="text-[#FFD601]" />,
@@ -156,7 +156,7 @@ export default function HomePage() {
             {
               icon: <Home size={36} className="text-[#FFD601]" />,
               title: "Variety of Options",
-              desc: "Explore hostels, apartments, and single rooms — all in one platform.",
+              desc: "Discover hostels and various apartments — all in one place.",
             },
           ].map((item, i) => (
             <motion.div
@@ -187,8 +187,7 @@ export default function HomePage() {
             Ready to Find Your Next Place?
           </h2>
           <p className="text-gray-300 mb-8">
-            Browse verified listings or list your own property with ease on
-            RoomQuest.
+            Browse verified hostels and apartments with ease on RoomQuest.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link

@@ -58,7 +58,7 @@ export default function UserDashboardPage() {
   const faqs = [
     {
       q: "💰 What are the booking fees for?",
-      a: "The booking fee covers your service and agent viewing fee — meaning the small cost paid for an agent to accompany you to physically inspect the room or hostel. It ensures the property you’re interested in actually exists and matches the description before you make final payment to the landlord.",
+      a: "The booking fee covers both our service charge and the agent viewing fee. This compensation allows us to accompany you to inspect the room or hostel in person. It ensures that the property you’re interested in actually exists, matches its online description and meets your expectations before you make any final payment to the property manager.",
     },
     {
       q: "⏳ How long do I have after booking a room or hostel?",
@@ -74,7 +74,7 @@ export default function UserDashboardPage() {
     },
     {
       q: "☎️ How can I contact support?",
-      a: "If you have any issues with booking or refunds, visit the ‘Support’ section on your dashboard to chat directly with a RoomQuest representative or send an email to support@roomquest.com.",
+      a: "If you have any issues with booking or refunds, visit the ‘Support’ section on your dashboard to chat directly with a RoomQuest representative or send an email to roomquestaccomodations4u@gmail.com.",
     },
   ];
 
@@ -88,7 +88,7 @@ export default function UserDashboardPage() {
         className="bg-white rounded-2xl shadow-md p-6 border border-gray-100"
       >
         <h1 className="text-2xl md:text-3xl font-bold text-[#142B6F] mb-2">
-          {loading ? "Loading..." : `Welcome back, ${userName} 👋🏽`}
+          {loading ? "Loading..." : `Welcome, ${userName} 👋🏽`}
         </h1>
         <p className="text-gray-600">
           Here’s your latest RoomQuest booking summary.

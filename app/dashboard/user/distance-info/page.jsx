@@ -5,16 +5,14 @@ import { Video, MapPin, MessageCircle, Info } from "lucide-react";
 
 const NAVY = "#142B6F";
 const GOLD = "#FFD601";
-const ADMIN_WHATSAPP = "+233501234567"; // ✅ Replace with your business WhatsApp number
+const ADMIN_WHATSAPP = "233538171713"; // ✅ Clean WhatsApp number (no + sign)
 
 export default function DistanceInfoPage() {
   const handleWhatsAppMessage = () => {
     const text = encodeURIComponent(
-      `Hello, I booked a room on RoomQuest but I'm currently not in town. I'd like to request a *Virtual Room Viewing Assistance* so you can check the place and video call me to confirm.`
+      `Hello, I would like to request a *Virtual Hostel Inspection* so the RoomQuest admin can visit the hostel and video call me to confirm.`
     );
-    window.open(
-      `https://wa.me/${ADMIN_WHATSAPP.replace("+", "")}?text=${text}`
-    );
+    window.open(`https://wa.me/${ADMIN_WHATSAPP}?text=${text}`);
   };
 
   return (
@@ -29,56 +27,56 @@ export default function DistanceInfoPage() {
           <Info size={24} className="text-[#142B6F]" />
         </div>
         <h1 className="text-2xl font-bold text-[#142B6F]">
-          Booking From a Distance
+          Can’t Inspect a Hostel in Person?
         </h1>
       </div>
 
       {/* Description */}
       <div className="space-y-5 text-gray-700 leading-relaxed">
         <p>
-          If you're unable to meet within{" "}
-          <span className="font-semibold">24 hours</span> for room viewing due
-          to travel or distance, RoomQuest has you covered.
+          Whether you’re in Accra or in another region, RoomQuest allows you to
+          secure your preferred hostel <b>without being physically present.</b>
         </p>
 
         <div className="bg-blue-50 border border-blue-100 p-4 rounded-lg text-blue-800 text-sm">
           <ul className="list-disc pl-5 space-y-2">
-            <li>The admin can personally visit the room on your behalf.</li>
+            <li>We personally visit the hostel on your behalf.</li>
             <li>
               You’ll receive a{" "}
-              <span className="font-semibold">live video call</span> showing the
-              room clearly.
+              <span className="font-semibold">live video call</span> to inspect
+              the room in real time.
             </li>
             <li>
-              Once you confirm your interest, the admin can help make the
-              payment to the landlord.
+              Once you’re satisfied, we assist you in making payment directly to
+              the property manager.
             </li>
             <li>
-              A <span className="font-semibold">10% service charge</span> still
-              applies for this process.
+              A <span className="font-semibold">10% service charge</span>{" "}
+              applies for this seamless assistance.
             </li>
           </ul>
         </div>
 
-        <div className="flex items-center gap-3 text-gray-600 text-sm mt-5">
+        <p className="text-gray-700">
+          This service ensures you secure trusted hostels from anywhere, with
+          video verification and property manager confirmation guaranteed.
+        </p>
+
+        <div className="flex items-center gap-3 text-gray-600 text-sm mt-2">
           <MapPin size={18} className="text-[#142B6F]" />
-          <span>
-            Available for long-distance users and out-of-town bookings.
-          </span>
+          <span>Ideal for users outside town or traveling.</span>
         </div>
 
-        <div className="flex items-center gap-3 text-gray-600 text-sm">
+        <div class-name="flex items-center gap-3 text-gray-600 text-sm">
           <Video size={18} className="text-[#142B6F]" />
-          <span>
-            Video call verification and landlord confirmation supported.
-          </span>
+          <span>Live video inspection and confirmation supported.</span>
         </div>
       </div>
 
       {/* CTA Section */}
       <div className="mt-10 text-center">
         <p className="text-gray-600 mb-4">
-          Need this service? Message the admin directly to arrange your virtual
+          Need this service? Message the admin to schedule your virtual hostel
           viewing.
         </p>
 

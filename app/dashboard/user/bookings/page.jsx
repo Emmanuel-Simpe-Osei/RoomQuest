@@ -121,7 +121,7 @@ export default function MyBookingsPage() {
             href="/hostels"
             className="inline-block mt-4 bg-[#142B6F] text-white px-5 py-2 rounded-lg font-semibold hover:bg-[#1A2D7A] transition-all"
           >
-            Browse Hostels
+            Browse Hostels and Rooms
           </a>
         </motion.div>
       ) : (

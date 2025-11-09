@@ -5,11 +5,14 @@ import { Phone, MessageCircle, MapPin, Clock } from "lucide-react";
 import Link from "next/link";
 
 export default function ContactPage() {
-  // 🧩 WhatsApp message template
-  const whatsappNumber = "2335381713"; // Ghana country code added
+  // ✅ Correct WhatsApp Number (no + sign)
+  const whatsappNumber = "233538171713";
+
+  // ✅ Message Template
   const message = encodeURIComponent(
-    "Hello RoomQuest 👋, I’m interested in finding accommodation and would like to know more about available rooms or hostels."
+    "Hello RoomQuest 👋, I need help finding a hostel/apartment and would like to learn more about available options."
   );
+
   const whatsappLink = `https://wa.me/${whatsappNumber}?text=${message}`;
 
   return (
@@ -26,8 +29,8 @@ export default function ContactPage() {
             Get in <span className="text-[#FFD601]">Touch</span>
           </h1>
           <p className="text-gray-600 max-w-2xl mx-auto text-[15px]">
-            Have questions or need help booking a room or hostel? We’re always
-            ready to assist you.
+            Have questions or need help booking a hostel or apartment? We’re
+            always ready to assist you.
           </p>
         </motion.div>
 
@@ -42,39 +45,42 @@ export default function ContactPage() {
             <h2 className="text-xl font-bold text-[#142B6F] mb-4">
               Let’s Make Room Hunting Simple
             </h2>
+
             <p className="text-gray-700 mb-6 text-[15px] leading-relaxed">
-              Reach out to our team for inquiries, booking assistance, or
-              collaboration opportunities. We’ll respond as soon as possible
-              through WhatsApp — your fastest way to connect with us.
+              Reach out to our team for inquiries, hostel search assistance, or
+              collaboration opportunities. The fastest way to contact us is
+              through WhatsApp — and we’ll respond as soon as possible.
             </p>
 
             <div className="space-y-4">
               <div className="flex items-center gap-3 text-gray-700">
                 <Phone className="text-[#142B6F]" size={20} />
-                <span>+233 53 817 13</span>
+                <span>+233 53 817 1713</span>
               </div>
+
               <div className="flex items-center gap-3 text-gray-700">
                 <MapPin className="text-[#142B6F]" size={20} />
                 <span>Accra, Ghana</span>
               </div>
+
               <div className="flex items-center gap-3 text-gray-700">
                 <Clock className="text-[#142B6F]" size={20} />
                 <span>Mon – Sat: 8:00 AM – 6:00 PM</span>
               </div>
             </div>
 
-            {/* WhatsApp Button */}
+            {/* ✅ WhatsApp Button */}
             <Link
               href={whatsappLink}
               target="_blank"
-              className="inline-flex items-center gap-2 mt-8 bg-[#25D366] text-white font-semibold px-6 py-3 rounded-full hover:bg-[#20b857] transition-all shadow-md"
+              className="inline-flex items-center gap-2 mt-8 bg-[#25D366] text-white font-semibold px-6 py-3 rounded-full hover:bg-[#1ebe5c] transition-all shadow-md"
             >
               <MessageCircle size={20} />
               Chat with us on WhatsApp
             </Link>
           </motion.div>
 
-          {/* Right Decorative Card */}
+          {/* Right Card */}
           <motion.div
             initial={{ opacity: 0, x: 40 }}
             animate={{ opacity: 1, x: 0 }}
@@ -85,9 +91,8 @@ export default function ContactPage() {
               Why Contact Us?
             </h3>
             <ul className="space-y-3 text-gray-700 text-[15px]">
-              <li>✅ Get assistance finding a room or hostel</li>
+              <li>✅ Get assistance finding a hostel or apartment</li>
               <li>✅ Verify listings before booking</li>
-              <li>✅ Ask about viewing and service fees</li>
               <li>✅ Partner or list your property with RoomQuest</li>
             </ul>
 

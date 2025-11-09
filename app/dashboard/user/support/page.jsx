@@ -8,7 +8,7 @@ import toast from "react-hot-toast";
 
 const NAVY = "#142B6F";
 const GOLD = "#FFD601";
-const ADMIN_WHATSAPP = "+233501234567"; // ✅ Replace with your business WhatsApp number
+const ADMIN_WHATSAPP = "233538171713"; // ✅ Clean business WhatsApp number (no plus)
 
 export default function SupportPage() {
   const [message, setMessage] = useState("");
@@ -56,9 +56,7 @@ export default function SupportPage() {
     const text = encodeURIComponent(
       "Hello, I need help with my RoomQuest booking or account."
     );
-    window.open(
-      `https://wa.me/${ADMIN_WHATSAPP.replace("+", "")}?text=${text}`
-    );
+    window.open(`https://wa.me/${ADMIN_WHATSAPP}?text=${text}`);
   };
 
   return (

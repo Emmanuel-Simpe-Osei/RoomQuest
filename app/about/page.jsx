@@ -18,7 +18,7 @@ export default function AboutPage() {
             About <span className="text-[#FFD601]">RoomQuest</span>
           </h1>
           <p className="text-base md:text-lg text-gray-600 max-w-2xl mx-auto">
-            Making room hunting simple, transparent, and secure.
+            Making Room Hunting Simple and Secure.
           </p>
         </motion.div>
 
@@ -33,34 +33,31 @@ export default function AboutPage() {
             <p className="mb-5 leading-relaxed text-gray-700 text-[15px]">
               Welcome to <strong>RoomQuest</strong>, a trusted platform
               dedicated to helping students and professionals find safe,
-              comfortable, and affordable accommodation with ease.
+              affordable, and comfortable accommodation with ease.
             </p>
 
             <p className="mb-5 leading-relaxed text-gray-700 text-[15px]">
-              We understand how stressful it can be to search for the right room
-              or hostel, so we’ve made the process simple and reliable. On
-              RoomQuest, you can explore available rooms and hostels, view
-              details, and easily book a viewing when you find one that suits
-              your needs.
+              We understand how stressful it can be to search for the right
+              hostel or apartment, so we've made the process simple and
+              reliable. With RoomQuest, you can explore available hostels and
+              apartments, view detailed information, and easily book for a
+              viewing when you find a place that meets your requirements.
             </p>
 
             <p className="mb-5 leading-relaxed text-gray-700 text-[15px]">
-              Our mission is to connect you to verified, quality spaces while
-              saving you time, money, and energy. Each listing on RoomQuest is
-              carefully curated to ensure transparency and trust between tenants
-              and property owners.
+              Every listing on RoomQuest is carefully inspected and verified to
+              ensure transparency and trust between students/tenants and
+              property managers.
             </p>
 
             <p className="leading-relaxed text-gray-700 text-[15px]">
               At RoomQuest, we believe finding a place to stay shouldn’t be
-              complicated — it should be{" "}
-              <strong>convenient, transparent,</strong> and{" "}
-              <strong>secure.</strong>
+              complicated — it should be easy, secure, and hassle-free.
             </p>
 
             <div className="mt-8">
               <h3 className="text-lg font-semibold text-[#142B6F] mb-2">
-                RoomQuest — Making room hunting simple.
+                RoomQuest — Making Room Hunting Simple.
               </h3>
             </div>
           </motion.div>
@@ -95,11 +92,11 @@ export default function AboutPage() {
             Our Mission
           </h2>
           <p className="text-gray-700 leading-relaxed max-w-3xl mx-auto">
-            To simplify the accommodation experience by connecting people with
-            verified and affordable spaces. Whether you’re a student seeking a
-            peaceful study environment or a professional needing comfort and
-            convenience, RoomQuest ensures your next move is stress-free and
-            trustworthy.
+            At RoomQuest, our goal is to simplify the accommodation experience
+            by connecting people to safe, affordable, and comfortable spaces.
+            Whether you’re a student looking for a peaceful place to stay or a
+            professional seeking convenience and comfort, RoomQuest makes your
+            next move easy, secure, and hassle-free.
           </p>
         </motion.div>
       </div>
