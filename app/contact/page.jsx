@@ -55,7 +55,7 @@ export default function ContactPage() {
             <div className="space-y-4">
               <div className="flex items-center gap-3 text-gray-700">
                 <Phone className="text-[#142B6F]" size={20} />
-                <span>+233 53 817 1713</span>
+                <span>+233 53 817 1713 / +233 59 933 3925</span>
               </div>
 
               <div className="flex items-center gap-3 text-gray-700">

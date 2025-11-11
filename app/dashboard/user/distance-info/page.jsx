@@ -51,8 +51,8 @@ export default function DistanceInfoPage() {
               the property manager.
             </li>
             <li>
-              A <span className="font-semibold">10% service charge</span>{" "}
-              applies for this seamless assistance.
+              A <span className="font-semibold">8% service charge</span> applies
+              for this seamless assistance.
             </li>
           </ul>
         </div>
