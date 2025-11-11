@@ -146,7 +146,7 @@ export default function HomePage() {
             {
               icon: <Smartphone size={36} className="text-[#FFD601]" />,
               title: "Book Easily",
-              desc: "Use your phone to reserve rooms instantly via WhatsApp or Paystack.",
+              desc: "Find your space and book it right from your phone, anytime, anywhere.",
             },
             {
               icon: <Wallet size={36} className="text-[#FFD601]" />,
