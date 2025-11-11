@@ -7,14 +7,16 @@ import Link from "next/link";
 export default function ContactPage() {
   // ✅ Correct WhatsApp Number (no + sign)
   const whatsappNumber = "233538171713";
-
+  const whatsappNumber2 = "233599333925";
   // ✅ Message Template
   const message = encodeURIComponent(
     "Hello RoomQuest 👋, I need help finding a hostel/apartment and would like to learn more about available options."
   );
-
+  const message2 = encodeURIComponent(
+    "Hello RoomQuest 👋, I need help finding a hostel/apartment and would like to learn more about available options."
+  );
   const whatsappLink = `https://wa.me/${whatsappNumber}?text=${message}`;
-
+  const whatsappLink2 = `https://wa.me/${whatsappNumber2}?text=${message}`;
   return (
     <section className="min-h-screen bg-gray-50 text-gray-800 py-16 px-6">
       <div className="max-w-6xl mx-auto">
@@ -98,7 +100,7 @@ export default function ContactPage() {
 
             <div className="mt-6 text-center">
               <Link
-                href={whatsappLink}
+                href={whatsappLink2}
                 target="_blank"
                 className="inline-flex items-center justify-center gap-2 bg-[#FFD601] text-[#142B6F] px-5 py-3 font-semibold rounded-full hover:bg-[#e6c100] transition-all"
               >
