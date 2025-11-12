@@ -1,67 +1,113 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import toast from "react-hot-toast";
+import { useRouter } from "next/navigation";
 
-export default function ForgotPasswordPage() {
-  const [email, setEmail] = useState("");
+export default function UpdatePasswordPage() {
+  const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [hasValidSession, setHasValidSession] = useState(false);
+  const [checkingSession, setCheckingSession] = useState(true);
+  const router = useRouter();
 
-  /* -------------------------------------------------------------
-     ✅ Handle Password Reset
-     Sends reset link via Supabase to the provided email address.
-     The redirect URL is dynamic: local (localhost) or production.
-  -------------------------------------------------------------- */
-  const handleReset = async (e) => {
+  // ✅ Check if user has a valid session
+  useEffect(() => {
+    const checkSession = async () => {
+      try {
+        const {
+          data: { session },
+          error,
+        } = await supabase.auth.getSession();
+
+        if (error || !session) {
+          toast.error(
+            "No valid session found. Please request a new reset link."
+          );
+          router.push("/forgot-password");
+          return;
+        }
+
+        setHasValidSession(true);
+      } catch (err) {
+        console.error("Session check error:", err);
+        toast.error("Something went wrong");
+        router.push("/");
+      } finally {
+        setCheckingSession(false);
+      }
+    };
+
+    checkSession();
+  }, [router]);
+
+  const handleUpdate = async (e) => {
     e.preventDefault();
+
+    if (!hasValidSession) {
+      toast.error("Please request a new reset link");
+      return;
+    }
+
     setLoading(true);
 
     try {
-      // Use NEXT_PUBLIC_SITE_URL in production or fallback to live domain
-      const redirectUrl = `${
-        process.env.NEXT_PUBLIC_SITE_URL || "https://roomquestaccomodations.com"
-      }/update-password`;
-
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: redirectUrl,
+      const { error } = await supabase.auth.updateUser({
+        password: password,
       });
 
       if (error) throw error;
 
-      toast.success("✅ Password reset link sent to your email!");
-    } catch (err) {
-      toast.error(err.message || "Something went wrong. Try again!");
+      toast.success("Password updated successfully!");
+
+      // Sign out and redirect to login
+      await supabase.auth.signOut();
+      setTimeout(() => router.push("/login"), 2000);
+    } catch (error) {
+      console.error("Update error:", error);
+      toast.error(error.message || "Failed to update password");
     } finally {
       setLoading(false);
     }
   };
 
+  if (checkingSession) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50">
+        <div className="text-lg">Checking authentication...</div>
+      </div>
+    );
+  }
+
+  if (!hasValidSession) {
+    return null; // Will redirect from useEffect
+  }
+
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50 p-6">
       <h1 className="text-2xl font-bold mb-4 text-[#142B6F]">
-        Forgot Password
+        Set New Password
       </h1>
-
       <form
-        onSubmit={handleReset}
+        onSubmit={handleUpdate}
         className="bg-white p-6 rounded-2xl shadow w-full max-w-sm space-y-4"
       >
         <input
-          type="email"
-          placeholder="Enter your email address"
+          type="password"
+          placeholder="Enter new password"
           className="w-full p-3 border rounded-md focus:ring-2 focus:ring-[#FFD601] outline-none"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
           required
+          minLength={6}
         />
-
         <button
           type="submit"
           disabled={loading}
-          className="w-full bg-[#FFD601] text-[#142B6F] p-3 rounded-md font-semibold hover:bg-yellow-400 transition-colors"
+          className="w-full bg-[#FFD601] text-[#142B6F] p-3 rounded-md font-semibold hover:bg-yellow-400 disabled:opacity-50"
         >
-          {loading ? "Sending..." : "Send Reset Link"}
+          {loading ? "Updating..." : "Update Password"}
         </button>
       </form>
     </div>
