@@ -8,7 +8,8 @@ import toast from "react-hot-toast";
 
 const NAVY = "#142B6F";
 const GOLD = "#FFD601";
-const ADMIN_WHATSAPP = "233538171713"; // ✅ Clean business WhatsApp number (no plus)
+const ADMIN_WHATSAPP_1 = "233599333925"; // First contact: 0599333925
+const ADMIN_WHATSAPP_2 = "233538171713"; // Second contact: +233 53 817 1713
 
 export default function SupportPage() {
   const [message, setMessage] = useState("");
@@ -52,11 +53,11 @@ export default function SupportPage() {
     setSending(false);
   };
 
-  const handleWhatsAppChat = () => {
+  const handleWhatsAppChat = (phoneNumber) => {
     const text = encodeURIComponent(
       "Hello, I need help with my RoomQuest booking or account."
     );
-    window.open(`https://wa.me/${ADMIN_WHATSAPP}?text=${text}`);
+    window.open(`https://wa.me/${phoneNumber}?text=${text}`);
   };
 
   return (
@@ -74,19 +75,31 @@ export default function SupportPage() {
 
       <p className="text-gray-600 mb-6">
         Need help? You can reach our support team directly via WhatsApp or send
-        us a message below — we’ll get back to you soon.
+        us a message below — we'll get back to you soon.
       </p>
 
-      {/* 💬 WhatsApp Support Button */}
-      <motion.button
-        whileHover={{ scale: 1.03 }}
-        whileTap={{ scale: 0.97 }}
-        onClick={handleWhatsAppChat}
-        className="w-full flex items-center justify-center gap-2 bg-[#25D366] text-white py-3 rounded-xl font-semibold shadow-lg hover:bg-[#1ebe5c] transition-all mb-8"
-      >
-        <MessageCircle size={18} />
-        Chat on WhatsApp
-      </motion.button>
+      {/* 💬 WhatsApp Support Buttons */}
+      <div className="space-y-3 mb-8">
+        <motion.button
+          whileHover={{ scale: 1.03 }}
+          whileTap={{ scale: 0.97 }}
+          onClick={() => handleWhatsAppChat(ADMIN_WHATSAPP_1)}
+          className="w-full flex items-center justify-center gap-2 bg-[#25D366] text-white py-3 rounded-xl font-semibold shadow-lg hover:bg-[#1ebe5c] transition-all"
+        >
+          <MessageCircle size={18} />
+          Chat on WhatsApp (0599333925)
+        </motion.button>
+
+        <motion.button
+          whileHover={{ scale: 1.03 }}
+          whileTap={{ scale: 0.97 }}
+          onClick={() => handleWhatsAppChat(ADMIN_WHATSAPP_2)}
+          className="w-full flex items-center justify-center gap-2 bg-[#128C7E] text-white py-3 rounded-xl font-semibold shadow-lg hover:bg-[#0e796c] transition-all"
+        >
+          <MessageCircle size={18} />
+          Chat on WhatsApp (053 817 1713)
+        </motion.button>
+      </div>
 
       {/* 📝 Send Message Form */}
       <div className="space-y-4">
