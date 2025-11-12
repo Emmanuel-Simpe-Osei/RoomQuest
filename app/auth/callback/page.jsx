@@ -1,29 +1,33 @@
 "use client";
 
 import { useEffect } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import toast from "react-hot-toast";
 
 export default function AuthCallback() {
   const router = useRouter();
-  const searchParams = useSearchParams();
 
   useEffect(() => {
     const handleAuthCallback = async () => {
       try {
-        // Get the token from URL parameters (Supabase puts it in hash)
+        console.log("🔍 Starting auth callback...");
+
+        // Get the hash from URL (Supabase puts tokens here)
         const hash = window.location.hash;
+        console.log("URL Hash:", hash);
 
         if (hash && hash.includes("access_token")) {
           // Extract tokens from hash
           const params = new URLSearchParams(hash.substring(1));
           const access_token = params.get("access_token");
           const refresh_token = params.get("refresh_token");
-          const token_type = params.get("token_type");
-          const expires_in = params.get("expires_in");
+          const type = params.get("type");
 
-          if (access_token) {
+          console.log("Token type:", type);
+          console.log("Access token found:", !!access_token);
+
+          if (access_token && type === "recovery") {
             // Set the session with the tokens
             const { error } = await supabase.auth.setSession({
               access_token,
@@ -31,18 +35,30 @@ export default function AuthCallback() {
             });
 
             if (error) {
-              console.error("Session set error:", error);
+              console.error("❌ Session set error:", error);
               toast.error("Invalid or expired reset link");
               router.push("/forgot-password");
               return;
             }
 
-            // Verify session was set
+            // Verify session was set successfully
             const {
               data: { session },
+              error: sessionError,
             } = await supabase.auth.getSession();
 
+            if (sessionError) {
+              console.error("❌ Session get error:", sessionError);
+              toast.error("Failed to verify session");
+              router.push("/forgot-password");
+              return;
+            }
+
             if (session) {
+              console.log(
+                "✅ Session verified successfully:",
+                session.user.email
+              );
               toast.success("Reset link verified! Set your new password.");
               router.push("/update-password");
               return;
@@ -50,11 +66,12 @@ export default function AuthCallback() {
           }
         }
 
-        // If no token found or session not set
+        // If we reach here, something went wrong
+        console.error("❌ No valid token found in URL");
         toast.error("Invalid reset link. Please request a new one.");
         router.push("/forgot-password");
       } catch (err) {
-        console.error("Auth callback error:", err);
+        console.error("❌ Auth callback error:", err);
         toast.error("Something went wrong. Please try again.");
         router.push("/forgot-password");
       }
