@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import toast from "react-hot-toast";
 
@@ -8,10 +8,26 @@ export default function UpdatePasswordPage() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
 
+  // ✅ Capture reset token when page loads
+  useEffect(() => {
+    const { data: authListener } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        if (event === "PASSWORD_RECOVERY") {
+          toast.success(
+            "Reset link verified — you can now set a new password!"
+          );
+        }
+      }
+    );
+
+    return () => {
+      authListener.subscription.unsubscribe();
+    };
+  }, []);
+
   const handleUpdate = async (e) => {
     e.preventDefault();
     setLoading(true);
-
     const { error } = await supabase.auth.updateUser({ password });
     setLoading(false);
 
