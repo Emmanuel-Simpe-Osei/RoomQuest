@@ -13,8 +13,8 @@ export default function ForgotPasswordPage() {
     setLoading(true);
 
     try {
-      // ✅ Use your actual domain
-      const redirectUrl = `https://roomquestaccomodations.com/auth/callback`;
+      // ✅ Point directly to update-password page
+      const redirectUrl = `https://roomquestaccomodations.com/update-password`;
 
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
         redirectTo: redirectUrl,
