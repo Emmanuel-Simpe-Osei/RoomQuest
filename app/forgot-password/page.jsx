@@ -8,19 +8,33 @@ export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
 
-  // ✅ Handle Reset
+  /* -------------------------------------------------------------
+     ✅ Handle Password Reset
+     Sends reset link via Supabase to the provided email address.
+     The redirect URL is dynamic: local (localhost) or production.
+  -------------------------------------------------------------- */
   const handleReset = async (e) => {
     e.preventDefault();
     setLoading(true);
 
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/update-password`,
-    });
+    try {
+      // Use NEXT_PUBLIC_SITE_URL in production or fallback to live domain
+      const redirectUrl = `${
+        process.env.NEXT_PUBLIC_SITE_URL || "https://roomquestaccomodations.com"
+      }/update-password`;
 
-    setLoading(false);
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: redirectUrl,
+      });
 
-    if (error) toast.error(error.message);
-    else toast.success("Password reset link sent to your email!");
+      if (error) throw error;
+
+      toast.success("✅ Password reset link sent to your email!");
+    } catch (err) {
+      toast.error(err.message || "Something went wrong. Try again!");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -28,6 +42,7 @@ export default function ForgotPasswordPage() {
       <h1 className="text-2xl font-bold mb-4 text-[#142B6F]">
         Forgot Password
       </h1>
+
       <form
         onSubmit={handleReset}
         className="bg-white p-6 rounded-2xl shadow w-full max-w-sm space-y-4"
@@ -40,10 +55,11 @@ export default function ForgotPasswordPage() {
           onChange={(e) => setEmail(e.target.value)}
           required
         />
+
         <button
           type="submit"
           disabled={loading}
-          className="w-full bg-[#FFD601] text-[#142B6F] p-3 rounded-md font-semibold hover:bg-yellow-400"
+          className="w-full bg-[#FFD601] text-[#142B6F] p-3 rounded-md font-semibold hover:bg-yellow-400 transition-colors"
         >
           {loading ? "Sending..." : "Send Reset Link"}
         </button>
