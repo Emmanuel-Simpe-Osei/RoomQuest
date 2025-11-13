@@ -13,7 +13,7 @@ export default function ForgotPasswordPage() {
     setLoading(true);
 
     try {
-      // ✅ Make sure this matches exactly what's in Supabase
+      // ✅ CORRECT: Use the redirectTo parameter properly
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
         redirectTo: "https://roomquestaccomodations.com/update-password",
       });
@@ -23,7 +23,10 @@ export default function ForgotPasswordPage() {
       toast.success("✅ Password reset link sent to your email!");
       setEmail("");
     } catch (err) {
-      toast.error(err.message || "Failed to send reset link");
+      console.error("Reset error:", err);
+      toast.error(
+        err.message || "Failed to send reset link. Please try again."
+      );
     } finally {
       setLoading(false);
     }
