@@ -8,36 +8,70 @@ import { useRouter } from "next/navigation";
 export default function UpdatePasswordPage() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [isReady, setIsReady] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
-    // Check if user has a valid session on page load
-    const checkSession = async () => {
-      const {
-        data: { session },
-        error,
-      } = await supabase.auth.getSession();
+    const initializeAuth = async () => {
+      try {
+        console.log("🔄 Initializing auth...");
 
-      if (error || !session) {
-        console.log("No session found, waiting for URL tokens...");
-        // Wait a bit for URL tokens to be processed
-        setTimeout(async () => {
-          const {
-            data: { session: newSession },
-          } = await supabase.auth.getSession();
-          if (!newSession) {
-            toast.error("Invalid or expired reset link");
-            setTimeout(() => router.push("/forgot-password"), 2000);
+        // Check if we already have a session
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+
+        if (session) {
+          console.log("✅ Already have session");
+          setIsReady(true);
+          return;
+        }
+
+        // Try to get tokens from URL hash (most common)
+        const hash = window.location.hash;
+        if (hash && hash.includes("access_token")) {
+          console.log("🔑 Found tokens in hash");
+          const params = new URLSearchParams(hash.substring(1));
+          const access_token = params.get("access_token");
+          const refresh_token = params.get("refresh_token");
+          const type = params.get("type");
+
+          if (access_token && type === "recovery") {
+            const { error } = await supabase.auth.setSession({
+              access_token,
+              refresh_token,
+            });
+
+            if (error) throw error;
+
+            console.log("✅ Session set from hash");
+            setIsReady(true);
+            return;
           }
-        }, 1000);
+        }
+
+        // If no tokens found, show error
+        console.error("❌ No valid tokens found");
+        toast.error("Invalid or expired reset link. Please request a new one.");
+        setTimeout(() => router.push("/forgot-password"), 3000);
+      } catch (error) {
+        console.error("❌ Auth initialization error:", error);
+        toast.error("Invalid reset link. Please request a new one.");
+        setTimeout(() => router.push("/forgot-password"), 3000);
       }
     };
 
-    checkSession();
+    initializeAuth();
   }, [router]);
 
   const handleUpdate = async (e) => {
     e.preventDefault();
+
+    if (password.length < 6) {
+      toast.error("Password must be at least 6 characters");
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -53,11 +87,21 @@ export default function UpdatePasswordPage() {
       await supabase.auth.signOut();
       setTimeout(() => router.push("/login"), 2000);
     } catch (error) {
+      console.error("Update error:", error);
       toast.error(error.message || "Failed to update password");
     } finally {
       setLoading(false);
     }
   };
+
+  if (!isReady) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50">
+        <div className="text-lg">Verifying your reset link...</div>
+        <div className="text-sm text-gray-600 mt-2">Please wait</div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50 p-6">
@@ -79,7 +123,7 @@ export default function UpdatePasswordPage() {
         />
         <button
           type="submit"
-          disabled={loading}
+          disabled={loading || password.length < 6}
           className="w-full bg-[#FFD601] text-[#142B6F] p-3 rounded-md font-semibold hover:bg-yellow-400 disabled:opacity-50"
         >
           {loading ? "Updating..." : "Update Password"}
