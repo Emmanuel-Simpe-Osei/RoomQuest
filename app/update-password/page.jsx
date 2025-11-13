@@ -14,49 +14,55 @@ export default function UpdatePasswordPage() {
   useEffect(() => {
     const initializeAuth = async () => {
       try {
-        console.log("🔄 Initializing auth...");
+        console.log("🔍 Checking URL:", window.location.href);
 
-        // Check if we already have a session
-        const {
-          data: { session },
-        } = await supabase.auth.getSession();
-
-        if (session) {
-          console.log("✅ Already have session");
-          setIsReady(true);
-          return;
-        }
-
-        // Try to get tokens from URL hash (most common)
+        // Check for tokens in URL hash
         const hash = window.location.hash;
+        console.log("URL Hash:", hash);
+
         if (hash && hash.includes("access_token")) {
-          console.log("🔑 Found tokens in hash");
+          console.log("✅ Found tokens in URL hash");
           const params = new URLSearchParams(hash.substring(1));
           const access_token = params.get("access_token");
           const refresh_token = params.get("refresh_token");
           const type = params.get("type");
 
+          console.log("Token type:", type);
+
           if (access_token && type === "recovery") {
+            // Set the session with the tokens
             const { error } = await supabase.auth.setSession({
               access_token,
               refresh_token,
             });
 
-            if (error) throw error;
+            if (error) {
+              console.error("❌ Session error:", error);
+              throw error;
+            }
 
-            console.log("✅ Session set from hash");
+            console.log("✅ Session set successfully");
             setIsReady(true);
             return;
           }
         }
 
-        // If no tokens found, show error
-        console.error("❌ No valid tokens found");
-        toast.error("Invalid or expired reset link. Please request a new one.");
-        setTimeout(() => router.push("/forgot-password"), 3000);
+        // If no tokens in hash, check if we already have a session
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+        if (session) {
+          console.log("✅ Already have valid session");
+          setIsReady(true);
+          return;
+        }
+
+        // If we get here, no valid tokens found
+        console.error("❌ No valid tokens found in URL");
+        throw new Error("No valid tokens");
       } catch (error) {
-        console.error("❌ Auth initialization error:", error);
-        toast.error("Invalid reset link. Please request a new one.");
+        console.error("❌ Auth initialization failed:", error);
+        toast.error("Invalid or expired reset link. Please request a new one.");
         setTimeout(() => router.push("/forgot-password"), 3000);
       }
     };
