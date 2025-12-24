@@ -1,0 +1,9 @@
+# *
+User-agent: *
+Allow: /
+
+# Host
+Host: https://roomquestaccomodations.com
+
+# Sitemaps
+Sitemap: https://roomquestaccomodations.com/sitemap.xml
