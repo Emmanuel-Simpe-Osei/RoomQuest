@@ -3,7 +3,7 @@ User-agent: *
 Allow: /
 
 # Host
-Host: https://roomquestaccomodations.com
+Host: https://www.roomquestaccomodations.com
 
 # Sitemaps
-Sitemap: https://roomquestaccomodations.com/sitemap.xml
+Sitemap: https://www.roomquestaccomodations.com/sitemap.xml
