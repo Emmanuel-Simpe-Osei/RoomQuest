@@ -1,7 +1,7 @@
 import "./globals.css";
 import { Toaster } from "react-hot-toast";
 import ClientWrapper from "@/components/ClientWrapper";
-import SeoSchema from "./components/SeoSchema";
+import SeoSchema from "@/components/SeoSchema";
 
 export const metadata = {
   title: "RoomQuest",
