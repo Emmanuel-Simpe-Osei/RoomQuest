@@ -25,3 +25,15 @@ export default function SeoSchema() {
     />
   );
 }
+const websiteSchema = {
+  "@context": "https://schema.org",
+  "@type": "WebSite",
+  name: "RoomQuest",
+  url: "https://www.roomquestaccomodations.com",
+  potentialAction: {
+    "@type": "SearchAction",
+    target:
+      "https://www.roomquestaccomodations.com/search?q={search_term_string}",
+    "query-input": "required name=search_term_string",
+  },
+};
