@@ -18,7 +18,8 @@ export default function AboutPage() {
             About <span className="text-[#FFD601]">RoomQuest</span>
           </h1>
           <p className="text-base md:text-lg text-gray-600 max-w-2xl mx-auto">
-            Making Room Hunting Simple and Secure.
+            Ghana’s trusted platform for finding verified hostels and rooms in
+            Accra.
           </p>
         </motion.div>
 
@@ -31,28 +32,29 @@ export default function AboutPage() {
             transition={{ duration: 0.8, delay: 0.2 }}
           >
             <p className="mb-5 leading-relaxed text-gray-700 text-[15px]">
-              Welcome to <strong>RoomQuest</strong>, a trusted platform
-              dedicated to helping students and professionals find safe,
-              affordable, and comfortable accommodation with ease.
+              Welcome to <strong>RoomQuest</strong>, a Ghana-based accommodation
+              platform dedicated to helping students and young professionals
+              find safe, affordable, and verified hostels and rooms across
+              Accra, with plans to expand to Kumasi.
             </p>
 
             <p className="mb-5 leading-relaxed text-gray-700 text-[15px]">
-              We understand how stressful it can be to search for the right
-              hostel or apartment, so we've made the process simple and
-              reliable. With RoomQuest, you can explore available hostels and
-              apartments, view detailed information, and easily book for a
-              viewing when you find a place that meets your requirements.
+              Searching for a reliable place to stay shouldn’t be stressful.
+              RoomQuest makes it easy to explore available hostels and
+              apartments, view detailed information, and book viewings for
+              spaces that fit your needs.
             </p>
 
             <p className="mb-5 leading-relaxed text-gray-700 text-[15px]">
               Every listing on RoomQuest is carefully inspected and verified to
-              ensure transparency and trust between students/tenants and
-              property managers.
+              ensure transparency and trust between tenants and property
+              managers.
             </p>
 
-            <p className="leading-relaxed text-gray-700 text-[15px]">
-              At RoomQuest, we believe finding a place to stay shouldn’t be
-              complicated — it should be easy, secure, and hassle-free.
+            <p className="mb-5 leading-relaxed text-gray-700 text-[15px]">
+              RoomQuest currently serves students and renters primarily in
+              Accra, helping users avoid scams and unreliable listings, with
+              future plans to cover Kumasi and other major cities in Ghana.
             </p>
 
             <div className="mt-8">
@@ -93,7 +95,8 @@ export default function AboutPage() {
           </h2>
           <p className="text-gray-700 leading-relaxed max-w-3xl mx-auto">
             At RoomQuest, our goal is to simplify the accommodation experience
-            by connecting people to safe, affordable, and comfortable spaces.
+            by connecting students and young professionals in Accra to safe,
+            affordable, and comfortable spaces, with plans to expand to Kumasi.
             Whether you’re a student looking for a peaceful place to stay or a
             professional seeking convenience and comfort, RoomQuest makes your
             next move easy, secure, and hassle-free.
