@@ -261,8 +261,9 @@ export default function HostelCard({ hostel }) {
   ------------------------------------------------------ */
   return (
     <>
-      {/* 🏠 Hostel Card */}
+      {/* 🏠 Hostel Card - ADDED ID HERE */}
       <motion.div
+        id={`hostel-${hostel.id}`} // ✅ ADDED: This is the critical fix!
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         whileHover={{ y: -3 }}

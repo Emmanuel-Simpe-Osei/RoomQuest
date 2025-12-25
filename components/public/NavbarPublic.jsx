@@ -96,11 +96,65 @@ export default function NavbarPublic() {
     return () => clearTimeout(timeout);
   }, [query, pathname]);
 
+  // ✅ FIXED: Scroll to hostel card instead of navigating to non-existent page
   const handleResultClick = (id) => {
-    router.push(`${pathname}/${id}`);
+    // Close mobile sidebar if open
+    if (isMobile && open) {
+      setOpen(false);
+    }
+
+    // Clear search
     setQuery("");
     setResults([]);
+
+    // Wait a moment for UI to update, then scroll to the element
+    setTimeout(() => {
+      const elementId = `hostel-${id}`;
+      const element = document.getElementById(elementId);
+
+      if (element) {
+        // Smooth scroll to the hostel card
+        element.scrollIntoView({
+          behavior: "smooth",
+          block: "center",
+        });
+
+        // Add a visual highlight effect
+        element.classList.add("ring-2", "ring-[#FFD601]", "ring-offset-2");
+        setTimeout(() => {
+          element.classList.remove("ring-2", "ring-[#FFD601]", "ring-offset-2");
+        }, 1500);
+      } else {
+        // Fallback: Update URL with hash for manual scrolling
+        window.history.pushState(null, "", `${pathname}#${elementId}`);
+        console.warn(
+          `Element with ID "${elementId}" not found. Make sure hostel cards have id="hostel-${id}"`
+        );
+      }
+    }, 100);
   };
+
+  // ✅ Handle URL hash on page load (for direct links)
+  useEffect(() => {
+    const handleHashScroll = () => {
+      const hash = window.location.hash;
+      if (hash && hash.startsWith("#hostel-")) {
+        const element = document.getElementById(hash.substring(1));
+        if (element) {
+          setTimeout(() => {
+            element.scrollIntoView({ behavior: "smooth", block: "center" });
+          }, 300);
+        }
+      }
+    };
+
+    // Initial check
+    handleHashScroll();
+
+    // Also check after navigation
+    const timeoutId = setTimeout(handleHashScroll, 500);
+    return () => clearTimeout(timeoutId);
+  }, [pathname]);
 
   // ✅ Detect page for showing search
   const showSearch =
@@ -128,7 +182,11 @@ export default function NavbarPublic() {
             results.map((r) => (
               <motion.button
                 key={r.id}
-                onClick={() => handleResultClick(r.id)}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  handleResultClick(r.id);
+                }}
                 whileHover={{ scale: 1.02 }}
                 className="flex items-center gap-2 w-full text-left px-3 py-2 hover:bg-gray-50 border-b border-gray-100 last:border-none text-xs"
               >
