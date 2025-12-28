@@ -139,9 +139,30 @@ export default function AdminBookingsPage() {
   const book4meCount = bookings.filter((b) => b.book4me_service).length;
 
   const handleContactUser = (booking) => {
-    const phone = booking.whatsapp?.replace(/[^0-9]/g, "");
-    if (!phone) return alert("No WhatsApp number provided.");
+    // Get phone number from whatsapp field first, then fallback to profiles.phone
+    let phone = booking.whatsapp || booking.profiles?.phone;
 
+    if (!phone) {
+      return alert("No WhatsApp number provided.");
+    }
+
+    console.log("📱 Original phone:", phone); // Debug log
+
+    // Remove all non-digit characters
+    phone = phone.replace(/\D/g, "");
+
+    // Convert Ghana local numbers to international format
+    if (phone.startsWith("0") && phone.length === 10) {
+      // Example: 0599340535 → 233599340535
+      phone = "233" + phone.slice(1);
+    } else if (phone.length === 9) {
+      // Example: 599340535 → 233599340535
+      phone = "233" + phone;
+    }
+
+    console.log("📱 Formatted phone:", phone); // Debug log
+
+    // Create message
     const message = `👋 Hello ${
       booking.profiles?.full_name || "there"
     }, this is RoomQuest Admin.
@@ -154,13 +175,23 @@ ${booking.book4me_service ? "✅ BOOK 4 Me Service: Selected" : ""}
 
 Please confirm when you'd like to inspect the property.`;
 
-    const url = `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
-    window.open(url, "_blank");
+    // Create WhatsApp URL
+    const whatsappUrl = `https://wa.me/${phone}?text=${encodeURIComponent(
+      message
+    )}`;
+
+    console.log("🔗 WhatsApp URL:", whatsappUrl); // Debug log
+
+    // Open WhatsApp
+    window.open(whatsappUrl, "_blank");
   };
 
   const handleCallUser = (phone) => {
     if (!phone) return alert("No phone number provided.");
-    window.open(`tel:${phone}`, "_self");
+
+    // Clean phone number for tel: link
+    const cleanPhone = phone.replace(/\D/g, "");
+    window.open(`tel:${cleanPhone}`, "_self");
   };
 
   const handleEmailUser = (email) => {
