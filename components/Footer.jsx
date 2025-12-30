@@ -8,8 +8,7 @@ export default function Footer() {
         <span className="font-semibold">RoomQuest</span>. All rights reserved.
       </p>
       <p className="mt-1 text-gray-300">
-        Built with ❤️ by{" "}
-        <span className="font-medium">Emmanuel Simpe Osei</span>
+        Built by <span className="font-medium">Emmanuel Simpe Osei</span>
       </p>
     </footer>
   );
